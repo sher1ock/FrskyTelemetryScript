@@ -1612,7 +1612,7 @@ local function reset()
       -- done
       resetPhase = 7
     elseif resetPhase == 7 then
-      utils.pushMessage(7,"Yaapu Telemetry Widget 1.9.3-beta3")
+      utils.pushMessage(7,"Yaapu Telemetry Widget 1.9.3-beta4")
       utils.playSound("yaapu")
       -- on model change reload config!
       if modelChangePending == true then
@@ -2238,7 +2238,7 @@ local function init()
   -- load battery config
   utils.loadBatteryConfigFile()
   -- ok done
-  utils.pushMessage(7,"Yaapu Telemetry Widget 1.9.3-beta3")
+  utils.pushMessage(7,"Yaapu Telemetry Widget 1.9.3-beta4")
   utils.playSound("yaapu")
   -- fix for generalsettings lazy loading...
   unitScale = getGeneralSettings().imperial == 0 and 1 or 3.28084
