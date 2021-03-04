@@ -727,7 +727,7 @@ local function playHash()
   playSound(tostring(shortHash == nil and hash or shortHash),true)
   -- if required parse parameter and play it!
   if parseShortHash == true then
-    local param = string.match(status.msgBuffer, ".*#(%d+).*")
+    local param = string.match(msgBuffer, ".*#(%d+).*")
     if param ~= nil then
       playNumber(tonumber(param),0)
     end
@@ -1713,7 +1713,7 @@ local function init()
   clearTable(menuLib)
   menuLib = nil
 
-  pushMessage(7,"Yaapu X9 Telemetry Script 1.9.1 beta1")
+  pushMessage(7,"Yaapu X9 Telemetry Script 1.9.1 beta2")
   collectgarbage()
   collectgarbage()
   playSound("yaapu")

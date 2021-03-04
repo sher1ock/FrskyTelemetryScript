@@ -23,8 +23,8 @@
 ---------------------
 -- GLOBAL DEFINES
 ---------------------
+--#define X9
 --#define 
---#define X7
 -- always use loadscript() instead of loadfile()
 -- force a loadscript() on init() to compile all .lua in .luac
 --#define COMPILE
@@ -102,6 +102,7 @@
 
 
 
+--#define HOMEDIR_X 42
 
 
 
