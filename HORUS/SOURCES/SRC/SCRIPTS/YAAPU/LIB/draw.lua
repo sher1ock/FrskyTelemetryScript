@@ -57,6 +57,10 @@
 --#define HASHDEBUG
 -- enable MESSAGES DEBUG
 --#define DEBUG_MESSAGES
+--#define DEBUG_FENCE
+--#define DEBUG_TERRAIN
+--#define DEBUG_THROTTLE
+
 ---------------------
 -- DEBUG REFRESH RATES
 ---------------------
@@ -85,6 +89,7 @@
 
 
 -- Throttle and RC use RPM sensor IDs
+
 
 ---------------------
 -- BATTERY DEFAULTS
@@ -310,6 +315,151 @@ local function drawRArrow(x,y,r,angle,color)
   drawLine(x3,y3,x4,y4,SOLID,color)
 end
 
+local function drawFenceStatus(utils,status,telemetry,x,y)
+  if telemetry.fencePresent == 0 then
+    return x
+  end
+  if telemetry.fenceBreached == 1 then
+    utils.drawBlinkBitmap("fence_breach",x,y)
+    return x+21
+  end
+  lcd.drawBitmap(utils.getBitmap("fence_ok"),x,y)
+  return x+21
+end
+
+local function drawTerrainStatus(utils,status,telemetry,x,y)
+  if status.terrainEnabled == 0 then
+    return x
+  end
+  if telemetry.terrainUnhealthy == 1 then
+    utils.drawBlinkBitmap("terrain_error",x,y)
+    return x+21
+  end
+  lcd.drawBitmap(utils.getBitmap("terrain_ok"),x,y)
+  return x+21
+end
+
+local function initMap(map,name)
+  if map[name] == nil then
+    map[name] = 0
+  end
+end
+-- initialize up to 5 bars
+local barMaxValues = {}
+local barAvgValues = {}
+local barSampleCounts = {}
+
+local function drawBar(name, x, y, w, h, color, value, flags)
+  -- init
+  initMap(barSampleCounts,name)
+  initMap(barMaxValues,name)
+  initMap(barAvgValues,name)
+  
+  -- update metadata
+  barSampleCounts[name] = barSampleCounts[name]+1
+  barMaxValues[name] = math.max(value,barMaxValues[name])
+  -- weighted average on 5 samples
+  barAvgValues[name] = barAvgValues[name]*0.9 + value*0.1
+  
+  lcd.setColor(CUSTOM_COLOR, 0xFFFF)
+  lcd.drawFilledRectangle(x,y,w,h,CUSTOM_COLOR)
+  
+  -- normalize percentage relative to MAX
+  local perc = 0
+  local avgPerc = 0
+  if barMaxValues[name] > 0 then
+    perc = value/barMaxValues[name]
+    avgPerc = barAvgValues[name]/barMaxValues[name]
+  end
+  lcd.setColor(CUSTOM_COLOR, color)
+  lcd.drawFilledRectangle(math.max(x,x+w-perc*w),y+1,math.min(w,perc*w),h-2,CUSTOM_COLOR)
+  lcd.setColor(CUSTOM_COLOR, 0xF800)
+  
+  lcd.drawLine(x+w-avgPerc*(w-2),y+1,x+w-avgPerc*(w-2),y+h-2,SOLID,CUSTOM_COLOR)
+  lcd.drawLine(1+x+w-avgPerc*(w-2),y+1,1+x+w-avgPerc*(w-2),y+h-2,SOLID,CUSTOM_COLOR)
+  lcd.setColor(CUSTOM_COLOR, 0x0000)
+  lcd.drawNumber(x+w-1,y-3,value,CUSTOM_COLOR+flags+RIGHT)
+  -- border
+  lcd.setColor(CUSTOM_COLOR, 0x0000)
+  lcd.drawRectangle(x,y,w,h,CUSTOM_COLOR)
+end
+
+
+-- max is 20 samples every 1 sec
+local graphSampleTime = {}
+local graphMaxValues = {}
+local graphMinValues = {}
+local graphAvgValues = {}
+local graphSampleCounts = {}
+local graphSamples = {}
+
+local function drawGraph(name, x ,y ,w , h, color, value, draw_bg, draw_value, unit)
+  -- init
+  initMap(graphSampleTime,name)
+  initMap(graphMaxValues,name)
+  initMap(graphMinValues,name)
+  initMap(graphAvgValues,name)
+  initMap(graphSampleCounts,name)
+  
+  if graphSamples[name] == nil then
+    graphSamples[name] = {}
+  end
+  
+  if getTime() - graphSampleTime[name] > 100 then
+    graphAvgValues[name] = graphAvgValues[name]*0.9 + value*0.1
+    graphSampleCounts[name] = graphSampleCounts[name]+1
+    graphSamples[name][graphSampleCounts[name]%20] = value -- 0->49
+    graphSampleTime[name] = getTime()
+    graphMinValues[name] = math.min(value, graphMinValues[name])
+    graphMaxValues[name] = math.max(value, graphMaxValues[name])
+  end
+  if graphSampleCounts[name] < 2 then
+    return
+  end
+  
+  if draw_bg == true then
+    lcd.setColor(CUSTOM_COLOR, 0xFFFF)
+    lcd.drawFilledRectangle(x,y,w,h,CUSTOM_COLOR)
+  end
+  
+  lcd.setColor(CUSTOM_COLOR, color) -- graph color
+  
+  local height = h - 5 -- available height for the graph
+  local step = (w-2)/(20-1)
+  local maxY = y + h - 3
+  
+  local minMaxWindow = graphMaxValues[name] - graphMinValues[name] -- max difference between current window min/max
+  
+  -- scale factor based on current min/max difference
+  local scale = height/minMaxWindow
+  
+  -- number of samples we can plot
+  local sampleWindow = math.min(20-1,graphSampleCounts[name]-1)
+  
+  for i=1,sampleWindow
+  do
+    local prevSample = graphSamples[name][(i-1+graphSampleCounts[name]-sampleWindow)%20]
+    local curSample =  graphSamples[name][(i+graphSampleCounts[name]-sampleWindow)%20]
+    
+    local x1 = x + (i-1)*step
+    local x2 = x + i*step
+    
+    local y1 = maxY - (prevSample-graphMinValues[name])*scale
+    local y2 = maxY - (curSample-graphMinValues[name])*scale    
+    
+    lcd.drawLine(x1,y1,x2,y2,SOLID,CUSTOM_COLOR)
+  end
+  
+  if draw_bg == true then
+    lcd.setColor(CUSTOM_COLOR, 0x0000)
+    lcd.drawRectangle(x,y,w,h,CUSTOM_COLOR)
+  end
+  if draw_value == true then
+    lcd.setColor(CUSTOM_COLOR, 0xFFFF)
+    lcd.drawText(x+2,y+h-18,string.format("%d%s",value,unit),CUSTOM_COLOR)
+  end
+end
+
 --[[
  x,y = top,left
  image = background image
@@ -350,15 +500,16 @@ end
 local function drawFailsafe(telemetry,utils)
   if telemetry.ekfFailsafe > 0 then
     utils.drawBlinkBitmap("ekffailsafe",LCD_W/2 - 90,154)
-  end
-  if telemetry.battFailsafe > 0 then
+  elseif telemetry.battFailsafe > 0 then
     utils.drawBlinkBitmap("battfailsafe",LCD_W/2 - 90,154)
+  elseif telemetry.failsafe > 0 then
+    utils.drawBlinkBitmap("failsafe",LCD_W/2 - 90,154)
   end
 end
 
 local function drawArmStatus(status,telemetry,utils)
   -- armstatus
-  if telemetry.ekfFailsafe == 0 and telemetry.battFailsafe == 0 and status.timerRunning == 0 then
+  if not utils.failsafeActive(telemetry) and status.timerRunning == 0 then
     if (telemetry.statusArmed == 1) then
       lcd.drawBitmap(utils.getBitmap("armed"),LCD_W/2 - 90,154)
     else
@@ -376,7 +527,7 @@ local function drawNoTelemetryData(status,telemetry,utils,telemetryEnabled)
     lcd.drawFilledRectangle(90,76, 300, 80, CUSTOM_COLOR)
     lcd.setColor(CUSTOM_COLOR,0xFFFF)
     lcd.drawText(110, 85, "no telemetry data", DBLSIZE+CUSTOM_COLOR)
-    lcd.drawText(130, 120, "Yaapu Telemetry Widget 1.9.3-beta4", SMLSIZE+CUSTOM_COLOR)
+    lcd.drawText(130, 120, "Yaapu Telemetry Widget 1.9.4 beta1", SMLSIZE+CUSTOM_COLOR)
   end
 end
 
@@ -442,69 +593,7 @@ local function drawCompassRibbon(y,myWidget,conf,telemetry,status,battery,utils,
   lcd.drawNumber(midX, bigFont and minY-6 or minY-2, heading, CUSTOM_COLOR+(bigFont and DBLSIZE or 0)+CENTER)
 end
 
--- optimized yaw ribbon drawing
---[[
-local function oldDrawCompassRibbon(y,myWidget,conf,telemetry,status,battery,utils,width,xMin,xMax,stepWidth,bigFont)
-  -- ribbon centered +/- 90 on yaw
-  local centerYaw = (telemetry.yaw + 270 - (bigFont and 16 or 10))%360 -- (-10 needed to center ribbon)
-  -- this is the first point left to be drawn on the compass ribbon
-  local nextPoint = math.floor(centerYaw/22.5) * 22.5
-  -- x coord of first ribbon letter
-  local nextPointX = xMin + (nextPoint - centerYaw)/22.5 * stepWidth
-  --
-  local i = (nextPoint / 22.5) % 16
-  for idx=1,12
-  do
-      local letterOffset = 1
-      local lineOffset = 4
-      if nextPointX >= xMin -3 and nextPointX < xMax then
-        if yawRibbonPoints[i] == nil then
-          lcd.setColor(CUSTOM_COLOR,COLOR_LINES)
-          lcd.drawLine(nextPointX + lineOffset, y+1, nextPointX + lineOffset, y+7, SOLID, CUSTOM_COLOR)
-        else
-          if #yawRibbonPoints[i] > 1 then
-            letterOffset = -5
-            lineOffset = 2
-          end
-          lcd.setColor(CUSTOM_COLOR,COLOR_TEXT)
-          --lcd.setColor(CUSTOM_COLOR,COLOR_GREY)
-          lcd.drawText(nextPointX+letterOffset,y+(bigFont and -2 or 0),yawRibbonPoints[i],SMLSIZE+CUSTOM_COLOR)
-        end
-      end
-      i = (i + 1) % 16
-      nextPointX = nextPointX + stepWidth
-  end
-  -- home icon
-  local homeOffset = 0
-  local angle = telemetry.homeAngle - telemetry.yaw
-  if angle < 0 then
-    angle = 360 + angle
-  end
-  if angle > 270 or angle < 90 then
-    homeOffset = ((angle + 90) % 180)/180  * width
-  elseif angle >= 90 and angle <= 180 then
-    homeOffset = width
-  end
-  drawHomeIcon(xMin + homeOffset -5,y + (bigFont and 28 or 20),utils)
-  -- yaw angle box
-  local xx = 0
-  if ( telemetry.yaw < 10) then
-    xx = bigFont and 20 or 14
-  elseif (telemetry.yaw < 100) then
-    xx = bigFont and 40 or 28
-  else
-    xx = bigFont and 60 or 42
-  end
-  --lcd.drawNumber(LCD_W/2 + xx - 6, YAW_Y, telemetry.yaw, MIDSIZE+INVERS)
-  lcd.setColor(CUSTOM_COLOR,COLOR_BLACK)
-  lcd.drawFilledRectangle(LCD_W/2 - (xx/2), y - 1, xx, bigFont and 28 or 20, CUSTOM_COLOR+SOLID)
-  lcd.drawRectangle(LCD_W/2 - (xx/2) - 1, y - 1, xx+2, bigFont and 28 or 20, CUSTOM_COLOR+SOLID)
-  lcd.setColor(CUSTOM_COLOR,COLOR_TEXT)
-  lcd.drawNumber(LCD_W/2 - (xx/2), y - 6, telemetry.yaw, (bigFont and DBLSIZE or MIDSIZE)+CUSTOM_COLOR)
-end
---]]
-
-local function drawStatusBar(maxRows,conf,telemetry,status,battery,alarms,frame,utils,gpsStatuses)
+local function drawStatusBar(maxRows,conf,telemetry,status,battery,alarms,frame,utils)
   local yDelta = (maxRows-1)*12
   
   lcd.setColor(CUSTOM_COLOR,0x0000)
@@ -524,7 +613,7 @@ local function drawStatusBar(maxRows,conf,telemetry,status,battery,alarms,frame,
   end
   -- gps status
   local hdop = telemetry.gpsHdopC
-  local strStatus = gpsStatuses[telemetry.gpsStatus]
+  local strStatus = utils.gpsStatuses[telemetry.gpsStatus]
   local flags = BLINK
   local mult = 1
   
@@ -540,7 +629,6 @@ local function drawStatusBar(maxRows,conf,telemetry,status,battery,alarms,frame,
       flags = 0
       mult=0.1
     end
-    -- HDOP
     lcd.drawNumber(270,226-yDelta, hdop*mult,DBLSIZE+flags+RIGHT+CUSTOM_COLOR)
     -- SATS
     lcd.setColor(CUSTOM_COLOR,0xFFFF)
@@ -561,13 +649,7 @@ local function drawStatusBar(maxRows,conf,telemetry,status,battery,alarms,frame,
   
   local offset = math.min(maxRows,#status.messages+1)
   for i=0,offset-1 do
-    if status.messages[(status.messageCount + i - offset) % (#status.messages+1)][2] < 4 then
-      lcd.setColor(CUSTOM_COLOR,lcd.RGB(255,70,0))
-    elseif status.messages[(status.messageCount + i - offset) % (#status.messages+1)][2] == 4 then
-      lcd.setColor(CUSTOM_COLOR,lcd.RGB(255,255,0))
-    else
-      lcd.setColor(CUSTOM_COLOR,0xFFFF)
-    end
+    lcd.setColor(CUSTOM_COLOR,utils.mavSeverity[status.messages[(status.messageCount + i - offset) % (#status.messages+1)][2]][2])
     lcd.drawText(1,(256-yDelta)+(12*i), status.messages[(status.messageCount + i - offset) % (#status.messages+1)][1],SMLSIZE+CUSTOM_COLOR)
   end
 end
@@ -579,6 +661,8 @@ return {
   drawVArrow=drawVArrow,
   drawRArrow=drawRArrow,
   drawGauge=drawGauge,
+  drawBar=drawBar,
+  drawGraph=drawGraph,
   computeOutCode=computeOutCode,
   drawLineWithClippingXY=drawLineWithClippingXY,
   drawLineWithClipping=drawLineWithClipping,
@@ -588,7 +672,8 @@ return {
   drawStatusBar=drawStatusBar,
   drawFilledRectangle=drawFilledRectangle,
   drawCompassRibbon=drawCompassRibbon,
-  --oldDrawCompassRibbon=oldDrawCompassRibbon,
-  yawRibbonPoints=yawRibbonPoints
+  yawRibbonPoints=yawRibbonPoints,
+  drawFenceStatus=drawFenceStatus,
+  drawTerrainStatus=drawTerrainStatus
 }
 

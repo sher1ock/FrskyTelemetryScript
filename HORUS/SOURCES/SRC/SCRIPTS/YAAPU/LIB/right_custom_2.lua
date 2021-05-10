@@ -57,6 +57,10 @@
 --#define HASHDEBUG
 -- enable MESSAGES DEBUG
 --#define DEBUG_MESSAGES
+--#define DEBUG_FENCE
+--#define DEBUG_TERRAIN
+--#define DEBUG_THROTTLE
+
 ---------------------
 -- DEBUG REFRESH RATES
 ---------------------
@@ -85,6 +89,7 @@
 
 
 -- Throttle and RC use RPM sensor IDs
+
 
 ---------------------
 -- BATTERY DEFAULTS
@@ -227,7 +232,7 @@ local function drawCustomSensors(x,customSensors,utils,status)
         
         -- max tracking, high values are critical
         if math.abs(value) ~= 0 and status.showMinMaxValues == false then
-          color = ( sensorValue*sign > sensorConfig[9]*sign and 0xF800 or (sensorValue*sign > sensorConfig[8]*sign and 0xFE60 or 0xFFFF))
+          color = ( sensorValue*sign > sensorConfig[9]*sign and 0xF800 or (sensorValue*sign > sensorConfig[8]*sign and 0xFFE0 or 0xFFFF))
         end
         
         lcd.setColor(CUSTOM_COLOR,color)
@@ -255,7 +260,7 @@ BATT_IDALL 0
 BATT_ID1 1
 BATT_ID2 2
 --]]
-local function drawPane(x,drawLib,conf,telemetry,status,alarms,battery,battId,gpsStatuses,utils,customSensors)
+local function drawPane(x,drawLib,conf,telemetry,status,alarms,battery,battId,utils,customSensors)
   lcd.setColor(CUSTOM_COLOR,0xFFFF)  
   local perc = battery[16+battId]
   --  battery min cell

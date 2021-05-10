@@ -57,6 +57,10 @@
 --#define HASHDEBUG
 -- enable MESSAGES DEBUG
 --#define DEBUG_MESSAGES
+--#define DEBUG_FENCE
+--#define DEBUG_TERRAIN
+--#define DEBUG_THROTTLE
+
 ---------------------
 -- DEBUG REFRESH RATES
 ---------------------
@@ -85,6 +89,7 @@
 
 
 -- Throttle and RC use RPM sensor IDs
+
 
 ---------------------
 -- BATTERY DEFAULTS
@@ -180,7 +185,7 @@ BATT_IDALL 0
 BATT_ID1 1
 BATT_ID2 2
 --]]
-local function drawPane(x,drawLib,conf,telemetry,status,alarms,battery,battId,gpsStatuses,utils)
+local function drawPane(x,drawLib,conf,telemetry,status,alarms,battery,battId,utils)
   lcd.setColor(CUSTOM_COLOR,0xFFFF)  
   local perc = battery[16+battId] 
   --  battery min cell

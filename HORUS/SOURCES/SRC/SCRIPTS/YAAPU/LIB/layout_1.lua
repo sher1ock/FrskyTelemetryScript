@@ -57,6 +57,10 @@
 --#define HASHDEBUG
 -- enable MESSAGES DEBUG
 --#define DEBUG_MESSAGES
+--#define DEBUG_FENCE
+--#define DEBUG_TERRAIN
+--#define DEBUG_THROTTLE
+
 ---------------------
 -- DEBUG REFRESH RATES
 ---------------------
@@ -85,6 +89,7 @@
 
 
 -- Throttle and RC use RPM sensor IDs
+
 
 ---------------------
 -- BATTERY DEFAULTS
@@ -234,7 +239,7 @@ local function drawCustomSensors(x,customSensors,utils,status)
         local sign = sensorConfig[6] == "+" and 1 or -1
         -- max tracking, high values are critical
         if math.abs(value) ~= 0 and status.showMinMaxValues == false then
-          color = ( sensorValue*sign > sensorConfig[9]*sign and lcd.RGB(255,70,0) or (sensorValue*sign > sensorConfig[8]*sign and 0xFE60 or 0xFFFF))
+          color = ( sensorValue*sign > sensorConfig[9]*sign and lcd.RGB(255,70,0) or (sensorValue*sign > sensorConfig[8]*sign and 0xFFE0 or 0xFFFF))
         end
         
         lcd.setColor(CUSTOM_COLOR,color)
@@ -250,29 +255,28 @@ local function drawCustomSensors(x,customSensors,utils,status)
     end
 end
 
-local function draw(myWidget,drawLib,conf,telemetry,status,battery,alarms,frame,utils,customSensors,gpsStatuses,leftPanel,centerPanel,rightPanel)
+local function draw(myWidget,drawLib,conf,telemetry,status,battery,alarms,frame,utils,customSensors,leftPanel,centerPanel,rightPanel)
   lcd.setColor(CUSTOM_COLOR,0xFFFF)
   centerPanel.drawHud(myWidget,drawLib,conf,telemetry,status,battery,utils)
-  --lcd.setColor(CUSTOM_COLOR,0xFE60)
   drawLib.drawRArrow(240,174,20,math.floor(telemetry.homeAngle - telemetry.yaw),CUSTOM_COLOR)--HomeDirection(telemetry)
   -- with dual battery default is to show aggregate view
   if status.batt2sources.fc or status.batt2sources.vs then
     if status.showDualBattery == false then
       -- dual battery: aggregate view
-      rightPanel.drawPane(380,drawLib,conf,telemetry,status,alarms,battery,0,gpsStatuses,utils)
+      rightPanel.drawPane(380,drawLib,conf,telemetry,status,alarms,battery,0,utils)
       -- left pane info
-      leftPanel.drawPane(0,drawLib,conf,telemetry,status,alarms,battery,0,gpsStatuses,utils)
+      leftPanel.drawPane(0,drawLib,conf,telemetry,status,alarms,battery,0,utils)
     else
       -- dual battery:battery 1 right pane
-      rightPanel.drawPane(380,drawLib,conf,telemetry,status,alarms,battery,1,gpsStatuses,utils)
+      rightPanel.drawPane(380,drawLib,conf,telemetry,status,alarms,battery,1,utils)
       -- dual battery:battery 2 left pane
-      rightPanel.drawPane(0,drawLib,conf,telemetry,status,alarms,battery,2,gpsStatuses,utils)
+      rightPanel.drawPane(0,drawLib,conf,telemetry,status,alarms,battery,2,utils)
     end
   else
     -- battery 1 right pane in single battery mode
-    rightPanel.drawPane(380,drawLib,conf,telemetry,status,alarms,battery,1,gpsStatuses,utils)
+    rightPanel.drawPane(380,drawLib,conf,telemetry,status,alarms,battery,1,utils)
     -- left pane info  in single battery mode
-    leftPanel.drawPane(0,drawLib,conf,telemetry,status,alarms,battery,0,gpsStatuses,utils)
+    leftPanel.drawPane(0,drawLib,conf,telemetry,status,alarms,battery,0,utils)
   end
   utils.drawTopBar()
   local msgRows = 4
@@ -281,9 +285,13 @@ local function draw(myWidget,drawLib,conf,telemetry,status,battery,alarms,frame,
     -- draw custom sensors
     drawCustomSensors(0,customSensors,utils,status)
   end
-  drawLib.drawStatusBar(msgRows,conf,telemetry,status,battery,alarms,frame,utils,gpsStatuses)
+  drawLib.drawStatusBar(msgRows,conf,telemetry,status,battery,alarms,frame,utils)
   drawLib.drawFailsafe(telemetry,utils)
   drawLib.drawArmStatus(status,telemetry,utils)
+  local nextX = drawLib.drawTerrainStatus(utils,status,telemetry,101,19)
+  drawLib.drawFenceStatus(utils,status,telemetry,nextX,19)
+  
+  lcd.setColor(CUSTOM_COLOR,0xFFFF)
 end
 
 return {draw=draw}

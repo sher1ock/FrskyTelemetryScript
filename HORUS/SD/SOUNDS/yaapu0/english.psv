@@ -27,6 +27,9 @@ SOUNDS/yaapu0/en|cruise|Cruise flight mode
 SOUNDS/yaapu0/en|disarmed|Motors disarmed
 SOUNDS/yaapu0/en|drift|Drift flight mode
 SOUNDS/yaapu0/en|ekf|E K F failsafe
+SOUNDS/yaapu0/en|failsafe|failsafe
+SOUNDS/yaapu0/en|fence|fence enabled
+SOUNDS/yaapu0/en|fencebreach|fence breach
 SOUNDS/yaapu0/en|flip|Flip flight mode
 SOUNDS/yaapu0/en|flowhold|flow position hold flight mode
 SOUNDS/yaapu0/en|flybywirea|Fly by wire a flight mode
@@ -71,6 +74,7 @@ SOUNDS/yaapu0/en|ssimpleoff|super simple mode disabled
 SOUNDS/yaapu0/en|ssimpleon|super simple mode enabled
 SOUNDS/yaapu0/en|stabilize|Stabilize flight mode
 SOUNDS/yaapu0/en|steering_r|Steering mode
+SOUNDS/yaapu0/en|terrainko|no terrain data
 SOUNDS/yaapu0/en|thermal|Thermal flight mode
 SOUNDS/yaapu0/en|throw|Throw flight mode
 SOUNDS/yaapu0/en|timealert|Timer alert

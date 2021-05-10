@@ -57,6 +57,10 @@
 --#define HASHDEBUG
 -- enable MESSAGES DEBUG
 --#define DEBUG_MESSAGES
+--#define DEBUG_FENCE
+--#define DEBUG_TERRAIN
+--#define DEBUG_THROTTLE
+
 ---------------------
 -- DEBUG REFRESH RATES
 ---------------------
@@ -85,6 +89,7 @@
 
 
 -- Throttle and RC use RPM sensor IDs
+
 
 ---------------------
 -- BATTERY DEFAULTS
@@ -648,18 +653,22 @@ local function drawMap(myWidget,drawLib,conf,telemetry,status,battery,utils,leve
         end
       end
     end
-    -- DEBUG
+    lcd.drawBitmap(utils.getBitmap("maps_box_60x16"),(LCD_W-300)/2+3,18+3)  
     lcd.setColor(CUSTOM_COLOR,0xFFFF)
-    lcd.drawText((LCD_W-300)/2+5,18+5,string.format("zoom:%d",level),SMLSIZE+CUSTOM_COLOR)
+    lcd.drawText((LCD_W-300)/2+5,18+2,string.format("zoom:%d",level),SMLSIZE+CUSTOM_COLOR)
     lcd.setColor(CUSTOM_COLOR,0xFFFF)
     
+    -- FENCE --
+    -- TERRAIN --
     -- LEFT ---
     
     -- ALT
+    local altPrefix = status.terrainEnabled == 1 and "HAT(" or "Alt("
+    local alt = status.terrainEnabled == 1 and telemetry.heightAboveTerrain or telemetry.homeAlt
     lcd.setColor(CUSTOM_COLOR,0x0000)
-    lcd.drawText(10, 50+16, "Alt("..unitLabel..")", SMLSIZE+0+CUSTOM_COLOR)
+    lcd.drawText(10, 50+16, altPrefix..unitLabel..")", SMLSIZE+0+CUSTOM_COLOR)
     lcd.setColor(CUSTOM_COLOR,0xFFFF)
-    lcd.drawNumber(10,50+27,telemetry.homeAlt*unitScale,MIDSIZE+CUSTOM_COLOR+0)
+    lcd.drawNumber(10,50+27,alt*unitScale,MIDSIZE+CUSTOM_COLOR+0)
     -- SPEED
     lcd.setColor(CUSTOM_COLOR,0x0000)
     lcd.drawText(10, 50+54, "Spd("..conf.horSpeedLabel..")", SMLSIZE+0+CUSTOM_COLOR)
@@ -740,15 +749,19 @@ end
 local function changeZoomLevel(level)
 end
 
-local function draw(myWidget,drawLib,conf,telemetry,status,battery,alarms,frame,utils,customSensors,gpsStatuses,leftPanel,centerPanel,rightPanel)
+local function draw(myWidget,drawLib,conf,telemetry,status,battery,alarms,frame,utils,customSensors,leftPanel,centerPanel,rightPanel)
   -- initialize maps
   init(conf,utils,status.mapZoomLevel)
   drawMap(myWidget,drawLib,conf,telemetry,status,battery,utils,status.mapZoomLevel)
+  lcd.drawBitmap(utils.getBitmap("graph_bg_120x30"),260,180)
+  drawLib.drawGraph("rpm1", 260, 180, 120, 30, 0xFE60, telemetry.homeAlt, false, true, "m")
   drawHud(myWidget,drawLib,conf,telemetry,status,battery,utils)
   utils.drawTopBar()
-  drawLib.drawStatusBar(2,conf,telemetry,status,battery,alarms,frame,utils,gpsStatuses)
+  drawLib.drawStatusBar(2,conf,telemetry,status,battery,alarms,frame,utils)
   drawLib.drawArmStatus(status,telemetry,utils)
   drawLib.drawFailsafe(telemetry,utils)
+  local nextX = drawLib.drawTerrainStatus(utils,status,telemetry,93,38)
+  drawLib.drawFenceStatus(utils,status,telemetry,nextX,38)
 end
 
 local function background(myWidget,conf,telemetry,status,utils)

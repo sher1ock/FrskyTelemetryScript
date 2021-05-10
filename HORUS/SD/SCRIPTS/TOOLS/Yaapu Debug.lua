@@ -8,9 +8,12 @@ local packetCount = {
   [0x5006] = 0,
   [0x5007] = 0,
   [0x5008] = 0,
-  [0x5009] = 0
+  [0x5009] = 0,
+  [0x500A] = 0,
+  [0x500B] = 0,
 }
 
+local sensorIds = {}
 local logfilename
 local logfile
 local flushtime = getTime()
@@ -26,6 +29,10 @@ local function background()
   for i=1,5
   do
     local sensor_id,frame_id,data_id,value = sportTelemetryPop()
+    if sensor_id ~= nil then
+      sensorIds[sensor_id] = true
+    end
+    
     if frame_id == 0x10 then
       if packetCount[data_id] ~= nil then
         packetCount[data_id] = packetCount[data_id] + 1
@@ -51,10 +58,14 @@ local function run(event)
   
   lcd.setColor(CUSTOM_COLOR, 0xFFFF)
   
-  lcd.drawText(1,1,"YAAPU DEBUG 1.0",MIDSIZE+CUSTOM_COLOR)
-  for i=0,9
+  lcd.drawText(1,1,"YAAPU DEBUG 1.1",MIDSIZE+CUSTOM_COLOR)
+  for i=0,11
   do
-    lcd.drawText(20,30+(i*20),string.format("500%d: %d", i, packetCount[0x5000+i]),MIDSIZE+CUSTOM_COLOR)
+    lcd.drawText(20,30+(i*16),string.format("500%X: %d", i, packetCount[0x5000+i]),CUSTOM_COLOR)
+  end
+  local j = 0
+  for k,v in ipairs(sensorIds) do
+    lcd.drawText(100,30+(j*16),string.format("ID:%X",k),CUSTOM_COLOR)
   end
   lcd.drawText(1,LCD_H-20,tostring("/LOGS/"..logfilename),CUSTOM_COLOR)
   collectgarbage()

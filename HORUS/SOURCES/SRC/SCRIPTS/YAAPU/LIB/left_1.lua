@@ -57,6 +57,10 @@
 --#define HASHDEBUG
 -- enable MESSAGES DEBUG
 --#define DEBUG_MESSAGES
+--#define DEBUG_FENCE
+--#define DEBUG_TERRAIN
+--#define DEBUG_THROTTLE
+
 ---------------------
 -- DEBUG REFRESH RATES
 ---------------------
@@ -85,6 +89,7 @@
 
 
 -- Throttle and RC use RPM sensor IDs
+
 
 ---------------------
 -- BATTERY DEFAULTS
@@ -177,7 +182,7 @@ local unitLongLabel = getGeneralSettings().imperial == 0 and "km" or "mi"
 
 
 
-local function drawPane(x,drawLib,conf,telemetry,status,alarms,battery,battId,gpsStatuses,utils)
+local function drawPane(x,drawLib,conf,telemetry,status,alarms,battery,battId,utils)
   lcd.setColor(CUSTOM_COLOR,0xFFFF)   
   if conf.rangeFinderMax > 0 then
     flags = 0
@@ -211,9 +216,9 @@ local function drawPane(x,drawLib,conf,telemetry,status,alarms,battery,battId,gp
   end
   -- LABELS
   lcd.setColor(CUSTOM_COLOR,0x0000)       
-  drawLib.drawHomeIcon(90 - 70, 70,utils)
-  lcd.drawText(90, 70, "Dist("..unitLabel..")", SMLSIZE+RIGHT+CUSTOM_COLOR)
-  lcd.drawText(90, 117, "Travel("..unitLongLabel..")", SMLSIZE+RIGHT+CUSTOM_COLOR)
+  drawLib.drawHomeIcon(90 - 70, 68,utils)
+  lcd.drawText(90, 68, "Dist("..unitLabel..")", SMLSIZE+RIGHT+CUSTOM_COLOR)
+  lcd.drawText(90, 112, "Travel("..unitLongLabel..")", SMLSIZE+RIGHT+CUSTOM_COLOR)
   -- VALUES
   lcd.setColor(CUSTOM_COLOR,0xFFFF)       
   -- home distance
@@ -227,14 +232,25 @@ local function drawPane(x,drawLib,conf,telemetry,status,alarms,battery,battId,gp
   end
   local strdist = string.format("%d",dist*unitScale)
   lcd.setColor(CUSTOM_COLOR,0xFFFF)  
-  lcd.drawText(90, 82, strdist, MIDSIZE+flags+RIGHT+CUSTOM_COLOR)
+  lcd.drawText(90, 80, strdist, MIDSIZE+flags+RIGHT+CUSTOM_COLOR)
   -- total distance
   lcd.setColor(CUSTOM_COLOR,0xFFFF)  
-  lcd.drawNumber(90, 129, telemetry.totalDist*unitLongScale*100, PREC2+MIDSIZE+RIGHT+CUSTOM_COLOR)
+  lcd.drawNumber(90, 124, telemetry.totalDist*unitLongScale*100, PREC2+MIDSIZE+RIGHT+CUSTOM_COLOR)
+  
+  lcd.setColor(CUSTOM_COLOR,0x0000)
+  
+  if conf.enableRPM == 2  or conf.enableRPM == 3 then
+    lcd.drawText(90, 152, "RPM 1", SMLSIZE+RIGHT+CUSTOM_COLOR)
+    drawLib.drawBar("rpm1", 4, 168, 86, 22, 0xFE60, math.abs(telemetry.rpm1), MIDSIZE)
+  end
+  if conf.enableRPM == 3 then
+    lcd.drawText(190, 152, "RPM 2", SMLSIZE+RIGHT+CUSTOM_COLOR)
+    drawLib.drawBar("rpm2", 100, 168, 86, 22, 0xFE60, math.abs(telemetry.rpm2), MIDSIZE)
+  end
   
   if status.showMinMaxValues == true then
     drawLib.drawVArrow(4, 37 + 4,true,false,utils)
-    drawLib.drawVArrow(4, 82 + 4 ,true,false,utils)
+    drawLib.drawVArrow(4, 80 + 4 ,true,false,utils)
   end
 end
 

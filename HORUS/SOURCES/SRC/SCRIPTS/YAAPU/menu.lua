@@ -57,6 +57,10 @@
 --#define HASHDEBUG
 -- enable MESSAGES DEBUG
 --#define DEBUG_MESSAGES
+--#define DEBUG_FENCE
+--#define DEBUG_TERRAIN
+--#define DEBUG_THROTTLE
+
 ---------------------
 -- DEBUG REFRESH RATES
 ---------------------
@@ -85,6 +89,7 @@
 
 
 -- Throttle and RC use RPM sensor IDs
+
 
 ---------------------
 -- BATTERY DEFAULTS
@@ -226,22 +231,25 @@ local menuItems = {
   {"left panel:", "LPANE", 1, {  "option 1","option 2","option 3","option 4" }, { 1 , 2, 3, 4 } },
   {"enable PX4 flightmodes:", "PX4", 1, { "no", "yes" }, { false, true } },
   {"enable CRSF support:", "CRSF", 1, { "no", "yes" }, { false, true } },
+  {"enable RPM support:", "RPM", 1, { "no", "rpm1", "rpm1+rpm2" }, { 1, 2, 3 } },
   {"emulated page channel:", "STC", 0, 0, 32,nil,0,1 },
   {"emulated wheel channel:", "SWC", 0, 0, 32,nil,0,1 },
+  {"emulated wheel delay in seconds:", "SWCD", 1, 0, 50,"sec",PREC1, 1 },
   {"GPS coordinates format:", "GPS", 1, { "DMS", "decimal" }, { 1, 2 } },
   {"map provider:", "MAPP", 1, { "GMapCatcher", "Google" }, { 1, 2 } },
   {"map type:", "MAPT", 1, { "satellite", "map", "terrain" }, { "sat_tiles", "tiles", "ter_tiles" } },
-  {"map min zoom level:", "MAPmZ", -2, -2, 17,nil,0,1 },
-  {"map max zoom level:", "MAPMZ", 17, -2, 17,nil,0,1 },
+  {"map zoom level default value:", "MAPZ", -2, -2, 17,nil,0,1 },
+  {"map zoom level min value:", "MAPmZ", -2, -2, 17,nil,0,1 },
+  {"map zoom level max value:", "MAPMZ", 17, -2, 17,nil,0,1 },
   {"map grid lines:", "MAPG", 1, { "yes", "no" }, { true, false } },
 }
-
-local menuItemsByName = {}
 
 -- map from NEW to OLD settings
 local mapNewToOldItemCfg = {
   ["SWC"] = "ZTC" -- ZTC was replaced by SWC
 }
+
+local menuItemsByName = {}
 
 local menu  = {
   selectedItem = 1,
@@ -295,7 +303,7 @@ local function updateMenuItems()
       end
       
       value, name, idx = getMenuItemByName(menuItems,"RPANE")
-      menuItems[idx][4] = { "default", "batt% by voltage", "tether", "hybrid"};
+      menuItems[idx][4] = { "default", "batt% by voltage", "tether", "hybrid" };
       menuItems[idx][5] = { 1, 2, 3, 4 };
       
       if menuItems[idx][3] > #menuItems[idx][4] then
@@ -310,23 +318,25 @@ local function updateMenuItems()
         menuItems[idx][3] = 1
       end
       
-      centerPanelFiles =  { "hud_1" }
-      rightPanelFiles =   { "right_1", "right_battperc_1", "right_tether_1", "right_hybrid_1" }
-      leftPanelFiles =    { "left_1", "left_m2f_1" }
+      centerPanelFiles = { "hud_1" }
+      rightPanelFiles = { "right_1", "right_battperc_1", "right_tether_1", "right_hybrid_1" }
+      leftPanelFiles = { "left_1", "left_m2f_1" }
     
     elseif value == 2 then
       ---------------------
       -- legacy layout
       ---------------------
       
+      --{"center panel layout:", "CPANE", 1, { "def","small","russian","dev" }, { 1, 2, 3, 4 } },
       value, name, idx = getMenuItemByName(menuItems,"CPANE")
-      menuItems[idx][4] = { "default", "russian hud", "compact hud " };
+      menuItems[idx][4] = { "default", "russian hud", "compact hud" };
       menuItems[idx][5] = { 1, 2, 3 };
       
       if menuItems[idx][3] > #menuItems[idx][4] then
         menuItems[idx][3] = 1
       end
       
+      --{"right panel layout:", "RPANE", 1, { "def", "custom", "empty","dev"}, { 1, 2, 3, 4 } },
       value, name, idx = getMenuItemByName(menuItems,"RPANE")
       menuItems[idx][4] = { "default", "custom sensors" };
       menuItems[idx][5] = { 1, 2 };
@@ -335,6 +345,7 @@ local function updateMenuItems()
         menuItems[idx][3] = 1
       end
       
+      --{"left panel layout:", "LPANE", 1, { "def","mav2frsky", "empty", "dev" }, { 1 , 2, 3, 4 } },
       value, name, idx = getMenuItemByName(menuItems,"LPANE")
       menuItems[idx][4] = { "default","mav2passthru" };
       menuItems[idx][5] = { 1, 2 };
@@ -343,9 +354,9 @@ local function updateMenuItems()
         menuItems[idx][3] = 1
       end
       
-      centerPanelFiles = {"hud_2", "hud_russian_2", "hud_small_2" }
-      rightPanelFiles = {"right_2", "right_custom_2" }
-      leftPanelFiles = {"left_2", "left_m2f_2" }
+      centerPanelFiles = {"hud_2", "hud_russian_2", "hud_small_2"}
+      rightPanelFiles = {"right_2", "right_custom_2"}
+      leftPanelFiles = {"left_2", "left_m2f_2"}
     end
     
     value, name, idx = getMenuItemByName(menuItems,"MAPP")
@@ -372,21 +383,25 @@ local function updateMenuItems()
     
     value2, name2, idx2 = getMenuItemByName(menuItems,"MAPmZ")
     
+    local idxzmin = idx2
+    
     if value2 ~= nil then
       if value == 1 then        -- GMapCatcher
         menuItems[idx2][4] = -2
         menuItems[idx2][5] = 17
-        
-        menuItems[idx2][3] = math.max(-2, menuItems[idx2][3])
+      
+        menuItems[idx2][3] = math.max(-2,menuItems[idx2][3])
       else                      -- Google
         menuItems[idx2][4] = 1
         menuItems[idx2][5] = 20
         
-        menuItems[idx2][3] = math.max(1, menuItems[idx2][3])
+        menuItems[idx2][3] = math.max(1,menuItems[idx2][3])
       end
     end
     
     value2, name2, idx2 = getMenuItemByName(menuItems,"MAPMZ")
+    
+    local idxzmax = idx2
     
     if value2 ~= nil then
       if value == 1 then        -- GMapCatcher
@@ -400,6 +415,15 @@ local function updateMenuItems()
         
         menuItems[idx2][3] = math.min(20,menuItems[idx2][3])
       end
+    end
+    
+    value2, name2, idx2 = getMenuItemByName(menuItems,"MAPZ")
+    
+    if value2 ~= nil then
+      menuItems[idx2][4] = menuItems[idxzmin][3]
+      menuItems[idx2][5] = menuItems[idxzmax][3]
+      
+      menuItems[idx2][3] = math.min(math.max(value2,menuItems[idxzmin][3]),menuItems[idxzmax][3])
     end
     
     menu.updated = false
@@ -449,7 +473,9 @@ local function applyConfigValues(conf)
   conf.leftPanelFilename = leftPanelFiles[conf.leftPanel]
   conf.enablePX4Modes = getMenuItemByName(menuItems,"PX4")
   conf.enableCRSF = getMenuItemByName(menuItems,"CRSF")
+  conf.enableRPM = getMenuItemByName(menuItems,"RPM")
   
+  conf.mapZoomLevel = getMenuItemByName(menuItems,"MAPZ")
   conf.mapZoomMin = getMenuItemByName(menuItems,"MAPmZ")
   conf.mapZoomMax = getMenuItemByName(menuItems,"MAPMZ")
   
@@ -463,6 +489,8 @@ local function applyConfigValues(conf)
   
   conf.enableMapGrid = getMenuItemByName(menuItems,"MAPG")
   conf.mapProvider = getMenuItemByName(menuItems,"MAPP")
+  
+  conf.screenWheelChannelDelay = getMenuItemByName(menuItems,"SWCD")
   
   -- set default voltage source
   if getMenuItemByName(menuItems,"VS") ~= nil then
@@ -547,7 +575,7 @@ local function drawConfigMenuBars()
   lcd.drawFilledRectangle(0,LCD_H-20, LCD_W, 20, CUSTOM_COLOR)
   lcd.drawRectangle(0, LCD_H-20, LCD_W, 20, CUSTOM_COLOR)
   lcd.setColor(CUSTOM_COLOR,0xFFFF)  
-  lcd.drawText(2,0,"Yaapu Telemetry Widget 1.9.3-beta4",CUSTOM_COLOR)
+  lcd.drawText(2,0,"Yaapu Telemetry Widget 1.9.4 beta1".." ("..'8047fde'..")",CUSTOM_COLOR)
   lcd.drawText(2,LCD_H-20+1,getConfigFilename(),CUSTOM_COLOR)
   lcd.drawText(LCD_W,LCD_H-20+1,itemIdx,CUSTOM_COLOR+RIGHT)
 end

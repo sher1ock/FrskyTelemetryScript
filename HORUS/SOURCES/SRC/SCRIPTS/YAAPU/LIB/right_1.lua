@@ -57,6 +57,10 @@
 --#define HASHDEBUG
 -- enable MESSAGES DEBUG
 --#define DEBUG_MESSAGES
+--#define DEBUG_FENCE
+--#define DEBUG_TERRAIN
+--#define DEBUG_THROTTLE
+
 ---------------------
 -- DEBUG REFRESH RATES
 ---------------------
@@ -85,6 +89,7 @@
 
 
 -- Throttle and RC use RPM sensor IDs
+
 
 ---------------------
 -- BATTERY DEFAULTS
@@ -181,7 +186,7 @@ BATT_IDALL 0
 BATT_ID1 1
 BATT_ID2 2
 --]]
-local function drawPane(x,drawLib,conf,telemetry,status,alarms,battery,battId,gpsStatuses,utils)
+local function drawPane(x,drawLib,conf,telemetry,status,alarms,battery,battId,utils)
   lcd.setColor(CUSTOM_COLOR,0xFFFF)  
   local perc = battery[16+battId]
   --  battery min cell
@@ -260,7 +265,7 @@ local function drawPane(x,drawLib,conf,telemetry,status,alarms,battery,battId,gp
   lcd.drawText(x+95, 122, battLabel, SMLSIZE+RIGHT+CUSTOM_COLOR)
   if battId < 2 then
     -- labels
-    lcd.drawText(x+12, 154, "Eff(mAh)", SMLSIZE+CUSTOM_COLOR+RIGHT)
+    lcd.drawText(x+-2, 154, "Eff(mAh)", SMLSIZE+CUSTOM_COLOR+RIGHT)
     lcd.drawText(x+95, 154, "Power(W)", SMLSIZE+CUSTOM_COLOR+RIGHT)
     -- data
     lcd.setColor(CUSTOM_COLOR,0xFFFF)
@@ -268,7 +273,7 @@ local function drawPane(x,drawLib,conf,telemetry,status,alarms,battery,battId,gp
     -- efficiency for indipendent batteries makes sense only for battery 1
     local eff = speed > 2 and (conf.battConf == 3 and battery[7+1] or battery[7])*1000/(speed*conf.horSpeedMultiplier) or 0
     eff = ( conf.battConf == 3 and battId == 2) and 0 or eff
-    lcd.drawNumber(x+12,164,eff,(eff > 99999 and 0 or MIDSIZE)+RIGHT+CUSTOM_COLOR)
+    lcd.drawNumber(x+-2,164,eff,(eff > 99999 and 0 or MIDSIZE)+RIGHT+CUSTOM_COLOR)
     -- power
     local power = battery[4+battId]*battery[7+battId]*0.01
     lcd.drawNumber(x+95,164,power,MIDSIZE+RIGHT+CUSTOM_COLOR)

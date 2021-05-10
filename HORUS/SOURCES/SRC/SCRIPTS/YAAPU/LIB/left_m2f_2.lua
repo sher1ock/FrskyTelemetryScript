@@ -57,6 +57,10 @@
 --#define HASHDEBUG
 -- enable MESSAGES DEBUG
 --#define DEBUG_MESSAGES
+--#define DEBUG_FENCE
+--#define DEBUG_TERRAIN
+--#define DEBUG_THROTTLE
+
 ---------------------
 -- DEBUG REFRESH RATES
 ---------------------
@@ -85,6 +89,7 @@
 
 
 -- Throttle and RC use RPM sensor IDs
+
 
 ---------------------
 -- BATTERY DEFAULTS
@@ -180,7 +185,7 @@ local unitLongLabel = getGeneralSettings().imperial == 0 and "km" or "mi"
 
 
 
-local function drawPane(x,drawLib,conf,telemetry,status,alarms,battery,battId,gpsStatuses,utils)--,getMaxValue,getBitmap,drawBlinkBitmap,lcdBacklightOn)
+local function drawPane(x,drawLib,conf,telemetry,status,alarms,battery,battId,utils)--,getMaxValue,getBitmap,drawBlinkBitmap,lcdBacklightOn)
   if conf.rangeFinderMax > 0 then
     local rng = telemetry.range
     rng = utils.getMaxValue(rng,16)
@@ -230,7 +235,6 @@ local function drawPane(x,drawLib,conf,telemetry,status,alarms,battery,battId,gp
     flags = 0
   end
   local strdist = string.format("%d",dist*unitScale)
-  --lcd.setColor(CUSTOM_COLOR,0xFE60)   
   lcd.drawText(153, 31, strdist, MIDSIZE+flags+RIGHT+CUSTOM_COLOR)
   -- total distance
   strdist = string.format("%.02f%s", telemetry.totalDist*unitLongScale,unitLongLabel)
