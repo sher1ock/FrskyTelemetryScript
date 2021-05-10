@@ -54,7 +54,10 @@
 --#define HUDRATE
 -- calc and show telemetry process rate
 --#define BGTELERATE
-
+-- debug fence
+--#define FENCEDEBUG
+-- debug terrain
+--#define TERRAINDEBUG
 ---------------------
 -- TESTMODE
 ---------------------
@@ -78,6 +81,8 @@
 
 
 -- Throttle and RC use RPM sensor IDs
+
+
 
 
 
@@ -259,6 +264,10 @@ telemetry.landComplete = 0
 telemetry.statusArmed = 0
 telemetry.battFailsafe = 0
 telemetry.ekfFailsafe = 0
+telemetry.failsafe = 0
+telemetry.fencePresent = 0
+telemetry.fenceBreached = 0
+telemetry.throttle = 0
 telemetry.imuTemp = 0
 -- GPS
 telemetry.numSats = 0
@@ -303,6 +312,12 @@ telemetry.throttle = 0
 telemetry.baroAlt = 0
 -- TOTAL DISTANCE
 telemetry.totalDist = 0
+-- RPM
+telemetry.rpm1 = 0
+telemetry.rpm2 = 0
+-- TERRAIN
+telemetry.heightAboveTerrain = 0
+telemetry.terrainUnhealthy = 0
 
 -- FLIGHT TIME
 local lastTimerStart = 0
@@ -341,6 +356,8 @@ status.battsource = "na"
 status.flightTime = 0    -- updated from model timer 3
 status.timerRunning = 0  -- triggered by landcomplete from AP
 status.showMinMaxValues = false
+status.terrainLastData = getTime()
+status.terrainEnabled = 0
 
 -- 00 05 10 15 20 25 30 40 50 60 70 80 90
 -- MIN MAX
@@ -390,7 +407,7 @@ local conf = {
   defaultBattSource = "na",
   enablePX4Modes = false,
   enableHaptic = false,
-  enableCRSF = false,
+  enableCRSF = false
 }
 --[[
  ALARM_TYPE_MIN needs arming (min has to be reached first), value below level for grace, once armed is periodic, reset on landing
@@ -420,6 +437,9 @@ local alarms = {
     { false, 0 , true, 2, 0, false, 0 }, --FLIGTH_TIME
     { false, 0 , false, 3, 4, false, 0 }, --BATT L1
     { false, 0 , false, 4, 4, false, 0 }, --BATT L2
+    { false, 0 , true, 1 , 0, false, 0 }, --FS
+    { false, 0 , true, 1 , 0, false, 0 }, --FENCE
+    { false, 0 , true, 1 , 0, false, 0 }, --TERRAIN
 }
 
 -------------------------
@@ -742,7 +762,7 @@ local function resetHash()
   hashByteIndex = 0
 end
 
-local function processTelemetry(DATA_ID, VALUE)
+local function processTelemetry(DATA_ID, VALUE,now)
   if DATA_ID == 0x5006 then -- ROLLPITCH
     -- roll [0,1800] ==> [-180,180]
     telemetry.roll = (math.min(bit32.extract(VALUE,0,11),1800) - 900) * 0.2
@@ -762,6 +782,10 @@ local function processTelemetry(DATA_ID, VALUE)
     telemetry.statusArmed = bit32.extract(VALUE,8,1)
     telemetry.battFailsafe = bit32.extract(VALUE,9,1)
     telemetry.ekfFailsafe = bit32.extract(VALUE,10,2)
+    telemetry.failsafe = bit32.extract(VALUE,12,1)
+    telemetry.fencePresent = bit32.extract(VALUE,13,1)
+    telemetry.fenceBreached = telemetry.fencePresent == 1 and bit32.extract(VALUE,14,1) or 0 -- we ignore fence breach if fence is disabled
+    telemetry.throttle = bit32.extract(VALUE,19,7)
     -- IMU temperature: 0 means temp =< 19°, 63 means temp => 82°
     telemetry.imuTemp = bit32.extract(VALUE,26,6) + 19 -- C°
   elseif DATA_ID == 0x5002 then -- GPS STATUS
@@ -841,6 +865,17 @@ local function processTelemetry(DATA_ID, VALUE)
     telemetry.wpDistance = bit32.extract(VALUE,12,10) * (10^bit32.extract(VALUE,10,2)) -- meters
     telemetry.wpXTError = bit32.extract(VALUE,23,4) * (10^bit32.extract(VALUE,22,1)) * (bit32.extract(VALUE,27,1) == 1 and -1 or 1)-- meters
     telemetry.wpBearing = bit32.extract(VALUE,29,3) -- offset from cog with 45° resolution 
+  elseif DATA_ID == 0x500A then -- RPM 1 and 2
+    -- rpm1 and rpm2 are int16_t
+    local rpm1 = bit32.extract(VALUE,0,16)
+    local rpm2 = bit32.extract(VALUE,16,16)
+    telemetry.rpm1 = 10*(bit32.extract(VALUE,15,1) == 0 and rpm1 or -1*(1+bit32.band(0x0000FFFF,bit32.bnot(rpm1)))) -- 2 complement if negative
+    telemetry.rpm2 = 10*(bit32.extract(VALUE,31,1) == 0 and rpm2 or -1*(1+bit32.band(0x0000FFFF,bit32.bnot(rpm2)))) -- 2 complement if negative
+  elseif DATA_ID == 0x500B then -- TERRAIN
+    telemetry.heightAboveTerrain = bit32.extract(VALUE,2,10) * (10^bit32.extract(VALUE,0,2)) * 0.1 * (bit32.extract(VALUE,12,1) == 1 and -1 or 1) -- dm to meters
+    telemetry.terrainUnhealthy = bit32.extract(VALUE,13,1)
+    status.terrainLastData = now
+    status.terrainEnabled = 1
 --[[
   elseif DATA_ID == 0x50F1 then -- RC CHANNELS
     -- channels 1 - 32
@@ -947,7 +982,6 @@ local function calcCellCount()
   
   return c1,c2
 end
-
 
 -- gets the voltage based on source and min value, battId = [1|2]
 local function getMinVoltageBySource(source, cell, cellFC, battId)
@@ -1118,19 +1152,19 @@ local function calcBattery()
     battery[13] = getBatt2Capacity()
   end
   
-    for battId=0,2
-    do
-      if (battery[13+battId] > 0) then
-        battery[16+battId] = (1 - (battery[10+battId]/battery[13+battId]))*100
-        if battery[16+battId] > 99 then
-          battery[16+battId] = 99
-        elseif battery[16+battId] < 0 then
-          battery[16+battId] = 0
-        end
-      else
+  for battId=0,2
+  do
+    if (battery[13+battId] > 0) then
+      battery[16+battId] = (1 - (battery[10+battId]/battery[13+battId]))*100
+      if battery[16+battId] > 99 then
         battery[16+battId] = 99
+      elseif battery[16+battId] < 0 then
+        battery[16+battId] = 0
       end
+    else
+      battery[16+battId] = 99
     end
+  end
   
   if status.showDualBattery == true and conf.battConf ==  1 then
     -- dual parallel battery: do I have also dual current monitor?
@@ -1202,6 +1236,9 @@ local function setSensorValues()
   setTelemetryValue(0x082F, 0, 0, math.floor(telemetry.gpsAlt*0.1), 9 , 0 , "GAlt")
   setTelemetryValue(0x041F, 0, 0, telemetry.imuTemp, 11 , 0 , "IMUt")
   setTelemetryValue(0x060F, 0, 1, telemetry.statusArmed*100, 0 , 0 , "ARM")
+  
+  setTelemetryValue(0x050E, 0, 0, telemetry.rpm1, 18 , 0 , "RPM0")
+  setTelemetryValue(0x050F, 0, 0, telemetry.rpm2, 18 , 0 , "RPM1")
 end
 
 local function drawAllMessages()
@@ -1337,29 +1374,22 @@ end
 local function checkEvents(cellVoltage)
   loadFlightModes()
   
-  checkAlarm(conf.minAltitudeAlert,telemetry.homeAlt,1,-1,"minalt",conf.repeatAlertsPeriod)
-  checkAlarm(conf.maxAltitudeAlert,telemetry.homeAlt,2,1,"maxalt",conf.repeatAlertsPeriod)  
+  local alt = status.terrainEnabled == 1 and telemetry.heightAboveTerrain or telemetry.homeAlt
+  checkAlarm(conf.minAltitudeAlert,alt,1,-1,"minalt",conf.repeatAlertsPeriod)
+  checkAlarm(conf.maxAltitudeAlert,alt,2,1,"maxalt",conf.repeatAlertsPeriod)  
   checkAlarm(conf.maxDistanceAlert,telemetry.homeDist,3,1,"maxdist",conf.repeatAlertsPeriod)
   checkAlarm(1,2*telemetry.ekfFailsafe,4,1,"ekf",conf.repeatAlertsPeriod)  
   checkAlarm(1,2*telemetry.battFailsafe,5,1,"lowbat",conf.repeatAlertsPeriod)  
   checkAlarm(math.floor(conf.timerAlert),status.flightTime,6,1,"timealert",math.floor(conf.timerAlert))
+  checkAlarm(1,2*telemetry.failsafe,9,1,"failsafe",conf.repeatAlertsPeriod)  
+  checkAlarm(1,2*telemetry.fenceBreached,10,1,"fencebreach",conf.repeatAlertsPeriod)  
+  checkAlarm(1,2*telemetry.terrainUnhealthy,11,1,"terrainko",conf.repeatAlertsPeriod)  
 
-  --[[
-  local capacity = getBatt1Capacity()
-  local mah = telemetry.batt1mah
-  
-  -- only if dual battery has been detected
-  if (batt2sources.fc or batt2sources.vs) and conf.battConf == BATTCONF_PARALLEL then
-  if (batt2sources.fc or batt2sources.vs) and conf.battConf == BATTCONF_PARALLEL then
-      capacity = capacity + getBatt2Capacity()
-      mah = mah  + telemetry.batt2mah
+  if (battery[13] > 0) then
+    batLevel = (1 - (battery[10]/battery[13]))*100
+  else
+    batLevel = 99
   end
-  --]]
-    if (battery[13] > 0) then
-      batLevel = (1 - (battery[10]/battery[13]))*100
-    else
-      batLevel = 99
-    end
   
   for l=0,12 do
     -- trigger alarm as as soon as it falls below level + 1 (i.e 91%,81%,71%,...)
@@ -1372,7 +1402,11 @@ local function checkEvents(cellVoltage)
   end
 
   if telemetry.statusArmed ~= lastStatusArmed then
-    if telemetry.statusArmed == 1 then playSound("armed") else playSound("disarmed") end
+    if telemetry.statusArmed == 1 then 
+      playSound("armed") 
+    else 
+      playSound("disarmed")
+    end
     lastStatusArmed = telemetry.statusArmed
   end
 
@@ -1439,13 +1473,14 @@ local bgclock = 0
 -- running at 20Hz (every 50ms)
 -------------------------------
 local function background()
+  local now = getTime()
   -- FAST: this runs at 60Hz (every 16ms)
   for i=1,7
   do
     local sensor_id,frame_id,data_id,value = telemetryPop()
     
     if frame_id == 0x10 then
-      processTelemetry(data_id,value)
+      processTelemetry(data_id,value,now)
       noTelemetryData = 0
       hideNoTelemetry = true
     end
@@ -1502,12 +1537,18 @@ local function background()
     -- rssi = roundf((1.0f - (rssi_dbm - 50.0f) / 70.0f) * 255.0f);
     rssiCRSF = string.format("%d/%d", math.min(100, math.floor(0.5 + ((1-(math.min(getValue("1RSS"), getValue("2RSS")) - 50)/70)*100))), getValue("RFMD"))
     
+    -- if we do not see terrain data for more than 5 sec we assume TERRAIN_ENABLE = 0
+    if status.terrainEnabled == 1 and (now - status.terrainLastData) > 500 then
+      status.terrainEnabled = 0
+      telemetry.terrainUnhealthy = 0
+    end
+    
     bgclock=0
   end
   -- blinking support
-  if (getTime() - blinktime) > 65 then
+  if (now - blinktime) > 65 then
     blinkon = not blinkon
-    blinktime = getTime()
+    blinktime = now
   end
   bgclock = bgclock+1
   collectgarbage()
@@ -1654,7 +1695,7 @@ local function run(event)
         
         drawLib.drawGrid()
         drawLib.drawRArrow(133,47,7,telemetry.homeAngle - telemetry.yaw,1)
-        drawLib.drawFailSafe(status.showDualBattery,telemetry.ekfFailsafe,telemetry.battFailsafe)
+        drawLib.drawFailSafe(status.showDualBattery,telemetry.ekfFailsafe,telemetry.battFailsafe,telemetry.failsafe)
       end
     end
     -- bottom bar
@@ -1665,7 +1706,8 @@ local function run(event)
       drawLib.drawBottomBar(messages[(messageCount + #messages) % (#messages+1)],lastMsgTime)
       drawLib.drawNoTelemetry(telemetryEnabled, hideNoTelemetry)
     end
-  -- event handler
+    
+    -- event handler
     if event == EVT_PLUS_BREAK or event == EVT_ROT_RIGHT or event == 36 then
       ---------------------
       -- SHOW MESSAGES
@@ -1685,6 +1727,7 @@ local function run(event)
       showConfigMenu = true
     end
   end
+
   if not telemetryEnabled() and blinkon then
     lcd.drawRectangle(0,0,212,LCD_H,showMessages and SOLID or ERASE)
   end
@@ -1713,7 +1756,7 @@ local function init()
   clearTable(menuLib)
   menuLib = nil
 
-  pushMessage(7,"Yaapu X9 Telemetry Script 1.9.1 beta2")
+  pushMessage(7,"Yaapu 1.9.4_b1".." ("..'6f7d99a'..")")
   collectgarbage()
   collectgarbage()
   playSound("yaapu")

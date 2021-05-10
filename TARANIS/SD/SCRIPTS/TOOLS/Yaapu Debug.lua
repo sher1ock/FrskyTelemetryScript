@@ -9,7 +9,9 @@ local packetCount = {
   [0x5006] = 0,
   [0x5007] = 0,
   [0x5008] = 0,
-  [0x5009] = 0
+  [0x5009] = 0,
+  [0x500A] = 0,
+  [0x500B] = 0,
 }
 
 local logfilename
@@ -47,17 +49,22 @@ end
 local function run(event)
   background()
   lcd.clear()
-  lcd.drawText(1,1,"YAAPU DEBUG 1.0",SMLSIZE)  
-  lcd.drawText(1,11,string.format("500%d: %d", 0, packetCount[0x5000]),SMLSIZE)
-  lcd.drawText(1,20,string.format("500%d: %d", 1, packetCount[0x5001]),SMLSIZE)
-  lcd.drawText(1,29,string.format("500%d: %d", 2, packetCount[0x5002]),SMLSIZE)
-  lcd.drawText(1,38,string.format("500%d: %d", 3, packetCount[0x5003]),SMLSIZE)
-  lcd.drawText(1,47,string.format("500%d: %d", 4, packetCount[0x5004]),SMLSIZE)
-  lcd.drawText(63,11,string.format("500%d: %d", 5, packetCount[0x5005]),SMLSIZE)
-  lcd.drawText(63,20,string.format("500%d: %d", 6, packetCount[0x5006]),SMLSIZE)
-  lcd.drawText(63,29,string.format("500%d: %d", 7, packetCount[0x5007]),SMLSIZE)
-  lcd.drawText(63,38,string.format("500%d: %d", 8, packetCount[0x5008]),SMLSIZE)
-  lcd.drawText(63,47,string.format("500%d: %d", 9, packetCount[0x5009]),SMLSIZE)
+  lcd.drawText(1,1,"YAAPU DEBUG 1.1",SMLSIZE)  
+  lcd.drawText(1,11,string.format("5000: %d", packetCount[0x5000]),SMLSIZE)
+  lcd.drawText(1,20,string.format("5001: %d", packetCount[0x5001]),SMLSIZE)
+  lcd.drawText(1,29,string.format("5002: %d", packetCount[0x5002]),SMLSIZE)
+  lcd.drawText(1,38,string.format("5003: %d", packetCount[0x5003]),SMLSIZE)
+  lcd.drawText(1,47,string.format("5004: %d", packetCount[0x5004]),SMLSIZE)
+  
+  lcd.drawText(63,11,string.format("5005: %d", packetCount[0x5005]),SMLSIZE)
+  lcd.drawText(63,20,string.format("5006: %d", packetCount[0x5006]),SMLSIZE)
+  lcd.drawText(63,29,string.format("5007: %d", packetCount[0x5007]),SMLSIZE)
+  lcd.drawText(63,38,string.format("5008: %d", packetCount[0x5008]),SMLSIZE)
+  lcd.drawText(63,47,string.format("5009: %d", packetCount[0x5009]),SMLSIZE)
+  
+  lcd.drawText(125,11,string.format("500A: %d", packetCount[0x500A]),SMLSIZE)
+  lcd.drawText(125,20,string.format("500B: %d", packetCount[0x500B]),SMLSIZE)
+  
   lcd.drawText(1,LCD_H-7,tostring(logfilename),SMLSIZE)
   collectgarbage()
   collectgarbage()
