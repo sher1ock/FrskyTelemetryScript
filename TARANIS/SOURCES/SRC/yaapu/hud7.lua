@@ -54,7 +54,10 @@
 --#define HUDRATE
 -- calc and show telemetry process rate
 --#define BGTELERATE
-
+-- debug fence
+--#define FENCEDEBUG
+-- debug terrain
+--#define TERRAINDEBUG
 ---------------------
 -- TESTMODE
 ---------------------
@@ -78,6 +81,8 @@
 
 
 -- Throttle and RC use RPM sensor IDs
+
+
 
 
 
@@ -252,16 +257,13 @@ local function drawHud(drawLib,conf,telemetry,status,battery,getMaxValue)
     -- 1st line offsets
     cx = math.cos(math.rad(90 - r)) * 6
     cy = math.sin(math.rad(90 - r)) * 6
-    -- 2nd line offsets
-    ccx = math.cos(math.rad(90 - r)) * 2 * 6
-    ccy = math.sin(math.rad(90 - r)) * 2 * 6
   end
   local rollX = 128/2 - 1 - 2
-  -- parallel lines above and below horizon line
-  drawLib.drawLineWithClipping(rollX + dx - ccx,dy + 33 + ccy,r,20,DOTTED,32,32 + 64,8,57 - 1)
-  drawLib.drawLineWithClipping(rollX + dx - cx,dy + 33 + cy,r,8,DOTTED,32,32 + 64,8,57 - 1)
-  drawLib.drawLineWithClipping(rollX + dx + cx,dy + 33 - cy,r,8,DOTTED,32,32 + 64,8,57 - 1)
-  drawLib.drawLineWithClipping(rollX + dx + ccx,dy + 33 - ccy,r,20,DOTTED,32,32 + 64,8,57 - 1)
+  for dist=1,6
+  do
+    drawLib.drawLineWithClipping(rollX + dx - dist*cx,dy + 33 + dist*cy,r,(dist%2==0 and 20 or 8),DOTTED,32,32 + 64,8,57 - 1)
+    drawLib.drawLineWithClipping(rollX + dx + dist*cx,dy + 33 - dist*cy,r,(dist%2==0 and 20 or 8),DOTTED,32,32 + 64,8,57 - 1)
+  end
   -----------------------
   -- dark color for "ground"
   -----------------------
@@ -347,8 +349,10 @@ local function drawHud(drawLib,conf,telemetry,status,battery,getMaxValue)
   lcd.drawLine(32 + 64 -  17 - 4,33 - 2,32 + 64 -  17 - 4,33 + 2, SOLID, FORCE)
   lcd.drawLine(32 + 64 -  17 - 3,33 - 3,32 + 64 -  17 - 1,33 - 5, SOLID, FORCE)
   lcd.drawLine(32 + 64 -  17 - 3,33 + 3,32 + 64 -  17 - 1,33 + 5, SOLID, FORCE)
-    -- altitude
-  local alt = getMaxValue(telemetry.homeAlt,11) * unitScale -- homeAlt is meters*3.28 = feet
+  
+  -- altitude (tracking max altitude but not max HAT)
+  local alt = status.terrainEnabled == 1 and telemetry.heightAboveTerrain or getMaxValue(telemetry.homeAlt,11)
+  alt = alt * unitScale -- alt is meters*3.28 = feet
 
   if math.abs(alt) < 10 then
       lcd.drawNumber(32 + 64,33 - 3,alt * 10,PREC1+RIGHT)
@@ -389,8 +393,8 @@ local function drawHud(drawLib,conf,telemetry,status,battery,getMaxValue)
     drawLib.drawVArrow(32 + 64 - 24, 33 - 4,6,true,false)
   end
   -- arming status, show only if timer is not running, hide otherwise
-  if telemetry.ekfFailsafe == 0 and telemetry.battFailsafe == 0 and status.timerRunning == 0 then
-    if (telemetry.statusArmed == 1) then
+  if telemetry.failsafe == 0 and telemetry.ekfFailsafe == 0 and telemetry.battFailsafe == 0 and status.timerRunning == 0 then
+    if telemetry.statusArmed == 1 then
       lcd.drawText(32 + 64/2 - 15, 20, " ARMED ", SMLSIZE+INVERS)
     else
       lcd.drawText(32 + 64/2 - 21, 20, " DISARMED ", SMLSIZE+INVERS+BLINK)
@@ -399,6 +403,24 @@ local function drawHud(drawLib,conf,telemetry,status,battery,getMaxValue)
   -- yaw angle box
   xx = telemetry.yaw < 10 and 1 or ( telemetry.yaw < 100 and -2 or -5 )
   lcd.drawNumber(128/2 + xx - 8, 0+7-1, telemetry.yaw, MIDSIZE+INVERS)
+  -- terrain status
+  local xNext = 32 + 2
+  if status.terrainEnabled == 1 then
+    local flags = SMLSIZE+INVERS
+    if telemetry.terrainUnhealthy == 1 then
+      flags = flags+BLINK
+    end
+    lcd.drawText(xNext, 48, "T", flags)
+    xNext = xNext+6
+  end
+  -- fence status
+  if telemetry.fencePresent == 1 then
+    local flags = SMLSIZE+INVERS
+    if telemetry.fenceBreached == 1 then
+      flags = flags+BLINK
+    end
+    lcd.drawText(xNext, 48, "F", flags)
+  end
 end
 
 

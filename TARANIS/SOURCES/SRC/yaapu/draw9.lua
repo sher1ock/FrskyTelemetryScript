@@ -54,7 +54,10 @@
 --#define HUDRATE
 -- calc and show telemetry process rate
 --#define BGTELERATE
-
+-- debug fence
+--#define FENCEDEBUG
+-- debug terrain
+--#define TERRAINDEBUG
 ---------------------
 -- TESTMODE
 ---------------------
@@ -78,6 +81,8 @@
 
 
 -- Throttle and RC use RPM sensor IDs
+
+
 
 
 
@@ -314,15 +319,17 @@ local function drawTopBar(strMode,simpleMode,flightTime,telemetryEnabled,rssi)
   end
 end
 
-local function drawFailSafe(showDualBattery,ekfFailsafe,battFailsafe)
-  local xoffset = 0
-  local yoffset = 0
+local function drawFailSafe(showDualBattery,ekfFailsafe,battFailsafe,failsafe)
+  if ekfFailsafe+battFailsafe+failsafe == 0 then
+    return
+  end
+  local msg = "    FAILSAFE   "
   if ekfFailsafe > 0 then
-    lcd.drawText(xoffset + 62 + 88/2 - 31, 20 + yoffset, " EKF FAILSAFE ", SMLSIZE+INVERS+BLINK)
+    msg = " EKF FAILSAFE  "
+  elseif battFailsafe > 0 then
+    msg = " BATT FAILSAFE "
   end
-  if battFailsafe > 0 then
-    lcd.drawText(xoffset + 62 + 88/2 - 31, 20 + yoffset, " BATT FAILSAFE ", SMLSIZE+INVERS+BLINK)
-  end
+  lcd.drawText(62 + 88/2 - 31, 20, msg, SMLSIZE+INVERS+BLINK)
 end
 
 local function drawNoTelemetry(telemetryEnabled,hideNoTelemetry)

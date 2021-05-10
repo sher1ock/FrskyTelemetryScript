@@ -54,7 +54,10 @@
 --#define HUDRATE
 -- calc and show telemetry process rate
 --#define BGTELERATE
-
+-- debug fence
+--#define FENCEDEBUG
+-- debug terrain
+--#define TERRAINDEBUG
 ---------------------
 -- TESTMODE
 ---------------------
@@ -78,6 +81,8 @@
 
 
 -- Throttle and RC use RPM sensor IDs
+
+
 
 
 
@@ -187,10 +192,10 @@ local menuItems = {
   {"rangefinder max:", "RM", 0, 0,10000," cm",0,10 },
   {"air/groundspeed unit:", "HSPD", 1, { "m/s", "km/h", "mph", "kn" }, { 1, 3.6, 2.23694, 1.94384} },
   {"vertical speed unit:", "VSPD", 1, { "m/s", "ft/s", "ft/min" }, { 1, 3.28084, 196.85} },
-  {"center panel layout:", "CPANE", 1, { "def" }, { 1 } },
-  {"right panel layout:", "RPANE", 1, { "def" }, { 1 } },
+  {"center panel layout:", "CPANE", 1, { "def", "min" }, { 1, 2 } },
+  {"right panel layout:", "RPANE", 1, { "def", "min","heli" }, { 1, 2, 3 } },
   {"left panel layout:", "LPANE", 1, { "def","m2f" }, { 1, 2 } },
-  {"second view layout:", "AVIEW", 1, { "def" }, { 1 } },
+  {"alternate view layout:", "AVIEW", 1, { "def" }, { 1 } },
   {"enable px4 flightmodes:", "PX4", 1, { "no", "yes" }, { false, true } },
   {"enable CRSF:", "CRSF", 1, { "no", "yes" }, { false, true } },
 }
@@ -201,8 +206,8 @@ local menu  = {
   offset = 0,
 }
 
-local centerPanelFiles = {"hud9"}
-local rightPanelFiles = {"right9"}
+local centerPanelFiles = {"hud9","hud9_min"}
+local rightPanelFiles = {"right9","right9_min","right9_heli"}
 local leftPanelFiles = {"left9","left9_m2f"}
 local altViewFiles = {"alt9_view"}
 
@@ -322,7 +327,7 @@ end
 local function drawConfigMenuBars()
   local itemIdx = string.format("%d/%d",menu.selectedItem,#menuItems)
   lcd.drawFilledRectangle(0,0, 212, 7, SOLID)
-  lcd.drawText(0,0,"Yaapu X9 Telemetry Script 1.9.1 beta2",SMLSIZE+INVERS)
+  lcd.drawText(0,0,"Yaapu 1.9.4_b1".." ("..'6f7d99a'..")",SMLSIZE+INVERS)
   lcd.drawFilledRectangle(0,56, 212, 8, SOLID)
   lcd.drawText(0,56+1,getConfigFilename(),SMLSIZE+INVERS)
   lcd.drawText(212,56+1,itemIdx,SMLSIZE+INVERS+RIGHT)

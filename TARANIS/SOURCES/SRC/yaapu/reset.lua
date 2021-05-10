@@ -54,7 +54,10 @@
 --#define HUDRATE
 -- calc and show telemetry process rate
 --#define BGTELERATE
-
+-- debug fence
+--#define FENCEDEBUG
+-- debug terrain
+--#define TERRAINDEBUG
 ---------------------
 -- TESTMODE
 ---------------------
@@ -78,6 +81,8 @@
 
 
 -- Throttle and RC use RPM sensor IDs
+
+
 
 
 
@@ -177,6 +182,10 @@ local function resetTelemetry(status,telemetry,battery,alarms,transitions)
   telemetry.statusArmed = 0
   telemetry.battFailsafe = 0
   telemetry.ekfFailsafe = 0
+  telemetry.failsafe = 0
+  telemetry.fencePresent = 0
+  telemetry.fenceBreached = 0
+  telemetry.throttle = 0  
   telemetry.imuTemp = 0
   -- GPS
   telemetry.numSats = 0
@@ -219,6 +228,9 @@ local function resetTelemetry(status,telemetry,battery,alarms,transitions)
   telemetry.baroAlt = 0
   -- TOTAL DISTANCE
   telemetry.totalDist = 0
+  -- TERRAIN
+  telemetry.heightAboveTerrain = 0
+  telemetry.terrainUnhealthy = 0
 
   -----------------------------
   -- SCRIPT STATUS
@@ -239,6 +251,9 @@ local function resetTelemetry(status,telemetry,battery,alarms,transitions)
     { false, 0 , true, 2, 0, false, 0 }, --FLIGTH_TIME
     { false, 0 , false, 3, 4, false, 0 }, --BATT L1
     { false, 0 , false, 4, 4, false, 0 } --BATT L2
+    { false, 0 , true, 1 , 0, false, 0 }, --FS
+    { false, 0 , true, 1 , 0, false, 0 }, --FENCE
+    { false, 0 , true, 1 , 0, false, 0 }, --TERRAIN
   }
 
   transitions = {
