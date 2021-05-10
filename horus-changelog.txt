@@ -114,3 +114,15 @@ Horus version 1.9.3 (beta)
 - added a status bar in message view with flight mode and flight time
 - improved mini HUD in maps view
 - many memory and speed optimizations
+
+Horus version 1.9.4 beta1
+
+- added git hash to version string
+- added support for fence status and alarms
+- added support for height above terrain
+- added no terrain data alarms
+- added generic failsafe alarm
+- added support for RPM1 and RPM2 (enable in the config menu)
+- improved status text colors
+- added altitude graph in map page of last 20 secs
+
