@@ -59,7 +59,6 @@
 --#define DEBUG_MESSAGES
 --#define DEBUG_FENCE
 --#define DEBUG_TERRAIN
---#define DEBUG_THROTTLE
 
 ---------------------
 -- DEBUG REFRESH RATES
@@ -186,7 +185,6 @@ local unitLongLabel = getGeneralSettings().imperial == 0 and "km" or "mi"
 
 
 
-
 local function drawPane(x,drawLib,conf,telemetry,status,alarms,battery,battId,utils)--,getMaxValue,getBitmap,drawBlinkBitmap,lcdBacklightOn)
   --lcd.setColor(CUSTOM_COLOR,lcd.RGB(0,33,56))
   --lcd.drawFilledRectangle(x + 3,21,93,203,CUSTOM_COLOR)  
@@ -227,7 +225,6 @@ local function drawPane(x,drawLib,conf,telemetry,status,alarms,battery,battId,ut
   lcd.drawText(165, 154, "WPD("..unitLabel..")", SMLSIZE+RIGHT+CUSTOM_COLOR)
   -- drawn on HUD bottom left
   lcd.drawText(88, 63, "ASpd("..conf.horSpeedLabel..")", SMLSIZE+CUSTOM_COLOR+RIGHT)
-  lcd.drawText(315, 154, "Thr(%)", SMLSIZE+CUSTOM_COLOR+RIGHT)
   -- VALUES
   lcd.setColor(CUSTOM_COLOR,0xFFFF)
   -- home distance
@@ -254,8 +251,6 @@ local function drawPane(x,drawLib,conf,telemetry,status,alarms,battery,battId,ut
   lcd.drawNumber(165, 164, telemetry.wpDistance * unitScale,MIDSIZE+RIGHT+CUSTOM_COLOR)
   -- airspeed
   lcd.drawNumber(88,74,telemetry.airspeed * conf.horSpeedMultiplier,MIDSIZE+RIGHT+PREC1+CUSTOM_COLOR)
-  -- throttle %
-  lcd.drawNumber(315,164,telemetry.throttle,MIDSIZE+RIGHT+CUSTOM_COLOR)
   -- LINES
   lcd.setColor(CUSTOM_COLOR,0xFFFF) --yellow
   -- wp bearing
@@ -280,7 +275,6 @@ local function background(myWidget,conf,telemetry,status,utils)
   -- VFR
   setTelemetryValue(0x0AF, 0, 0, telemetry.airspeed*0.1, 4 , 0 , "ASpd")
   setTelemetryValue(0x010F, 0, 1, telemetry.baroAlt*10, 9 , 1 , "BAlt")
-  setTelemetryValue(0x050F, 0, 0, telemetry.throttle, 13 , 0 , "Thr")
   
   -- WP
   setTelemetryValue(0x050F, 0, 10, telemetry.wpNumber, 0 , 0 , "WPN")

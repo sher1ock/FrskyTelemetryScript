@@ -59,7 +59,6 @@
 --#define DEBUG_MESSAGES
 --#define DEBUG_FENCE
 --#define DEBUG_TERRAIN
---#define DEBUG_THROTTLE
 
 ---------------------
 -- DEBUG REFRESH RATES
@@ -527,7 +526,7 @@ local function drawNoTelemetryData(status,telemetry,utils,telemetryEnabled)
     lcd.drawFilledRectangle(90,76, 300, 80, CUSTOM_COLOR)
     lcd.setColor(CUSTOM_COLOR,0xFFFF)
     lcd.drawText(110, 85, "no telemetry data", DBLSIZE+CUSTOM_COLOR)
-    lcd.drawText(130, 120, "Yaapu Telemetry Widget 1.9.4 beta1", SMLSIZE+CUSTOM_COLOR)
+    lcd.drawText(130, 120, "Yaapu Telemetry Widget 1.9.5-dev", SMLSIZE+CUSTOM_COLOR)
   end
 end
 
@@ -654,6 +653,69 @@ local function drawStatusBar(maxRows,conf,telemetry,status,battery,alarms,frame,
   end
 end
 
+--------------------------
+-- CUSTOM SENSORS SUPPORT
+--------------------------
+
+local function drawCustomSensors(x,customSensors,customSensorXY,utils,status,colorLabel)
+    --lcd.setColor(CUSTOM_COLOR,lcd.RGB(0,75,128))
+    lcd.setColor(CUSTOM_COLOR,0x0000)
+    lcd.drawFilledRectangle(0,194,LCD_W,35,CUSTOM_COLOR)
+    lcd.setColor(CUSTOM_COLOR,0x7BCF)
+    lcd.drawLine(1,228,LCD_W-2,228,SOLID,CUSTOM_COLOR)
+    
+    local label,data,prec,mult,flags,sensorConfig
+    for i=1,6
+    do
+      if customSensors.sensors[i] ~= nil then 
+        sensorConfig = customSensors.sensors[i]
+        
+        if sensorConfig[4] == "" then
+          label = string.format("%s",sensorConfig[1])
+        else
+          label = string.format("%s(%s)",sensorConfig[1],sensorConfig[4])
+        end
+        -- draw sensor label
+        lcd.setColor(CUSTOM_COLOR,colorLabel)
+        lcd.drawText(x+customSensorXY[i][1], customSensorXY[i][2],label, SMLSIZE+RIGHT+CUSTOM_COLOR)
+        
+        mult =  sensorConfig[3] == 0 and 1 or ( sensorConfig[3] == 1 and 10 or 100 )
+        prec =  mult == 1 and 0 or (mult == 10 and 32 or 48)
+        
+        local sensorName = sensorConfig[2]..(status.showMinMaxValues == true and sensorConfig[6] or "")
+        local sensorValue = getValue(sensorName) 
+        local value = (sensorValue+(mult == 100 and 0.005 or 0))*mult*sensorConfig[5]        
+        
+        -- default font size
+        flags = sensorConfig[7] == 1 and 0 or MIDSIZE
+        
+        --[[
+        -- for sensor 3,4,5,6 reduce font if necessary
+        if math.abs(value)*mult > 99999 then
+          flags = 0
+        end
+        --]]
+        
+        local color = 0xFFFF
+        local sign = sensorConfig[6] == "+" and 1 or -1
+        -- max tracking, high values are critical
+        if math.abs(value) ~= 0 and status.showMinMaxValues == false then
+          color = ( sensorValue*sign > sensorConfig[9]*sign and lcd.RGB(255,70,0) or (sensorValue*sign > sensorConfig[8]*sign and 0xFFE0 or 0xFFFF))
+        end
+        
+        lcd.setColor(CUSTOM_COLOR,color)
+        
+        local voffset = flags==0 and 6 or 0
+        -- if a lookup table exists use it!
+        if customSensors.lookups[i] ~= nil and customSensors.lookups[i][value] ~= nil then
+          lcd.drawText(x+customSensorXY[i][3], customSensorXY[i][4]+voffset, customSensors.lookups[i][value] or value, flags+RIGHT+CUSTOM_COLOR)
+        else
+          lcd.drawNumber(x+customSensorXY[i][3], customSensorXY[i][4]+voffset, value, flags+RIGHT+prec+CUSTOM_COLOR)
+        end
+      end
+    end
+end
+
 return {
   drawNumberWithDim=drawNumberWithDim,
   drawHomeIcon=drawHomeIcon,
@@ -674,6 +736,7 @@ return {
   drawCompassRibbon=drawCompassRibbon,
   yawRibbonPoints=yawRibbonPoints,
   drawFenceStatus=drawFenceStatus,
-  drawTerrainStatus=drawTerrainStatus
+  drawTerrainStatus=drawTerrainStatus,
+  drawCustomSensors=drawCustomSensors
 }
 

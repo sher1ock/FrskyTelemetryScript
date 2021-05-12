@@ -59,7 +59,6 @@
 --#define DEBUG_MESSAGES
 --#define DEBUG_FENCE
 --#define DEBUG_TERRAIN
---#define DEBUG_THROTTLE
 
 ---------------------
 -- DEBUG REFRESH RATES
@@ -174,6 +173,7 @@ local unitLongLabel = getGeneralSettings().imperial == 0 and "km" or "mi"
 
 
 
+
 -- offsets are: 1 celm, 4 batt, 7 curr, 10 mah, 13 cap, indexing starts at 1
 --[[
 BATT_CELL 1
@@ -248,8 +248,11 @@ local function drawPane(x,drawLib,conf,telemetry,status,alarms,battery,battId,ut
   local strmah = string.format("%.02f/%.01f",battery[10+battId]/1000,battery[13+battId]/1000)
   --lcd.drawText(x+95, 135+2, "Ah", SMLSIZE+RIGHT+CUSTOM_COLOR)
   lcd.drawText(x+95, 135, strmah, 0+RIGHT+CUSTOM_COLOR)
-
+  -- throttle %
+  lcd.drawNumber(310,165,telemetry.throttle,MIDSIZE+RIGHT+CUSTOM_COLOR)
+  
   lcd.setColor(CUSTOM_COLOR,0x0000)
+  lcd.drawText(315, 154, "Thr(%)", SMLSIZE+CUSTOM_COLOR+RIGHT)
   local battLabel = "B1+B2(Ah)"
   if battId == 0 then
     if conf.battConf ==  3 then
@@ -265,7 +268,7 @@ local function drawPane(x,drawLib,conf,telemetry,status,alarms,battery,battId,ut
   lcd.drawText(x+95, 122, battLabel, SMLSIZE+RIGHT+CUSTOM_COLOR)
   if battId < 2 then
     -- labels
-    lcd.drawText(x+-2, 154, "Eff(mAh)", SMLSIZE+CUSTOM_COLOR+RIGHT)
+    lcd.drawText(x+15, 154, "Eff(mAh)", SMLSIZE+CUSTOM_COLOR+RIGHT)
     lcd.drawText(x+95, 154, "Power(W)", SMLSIZE+CUSTOM_COLOR+RIGHT)
     -- data
     lcd.setColor(CUSTOM_COLOR,0xFFFF)
@@ -273,11 +276,11 @@ local function drawPane(x,drawLib,conf,telemetry,status,alarms,battery,battId,ut
     -- efficiency for indipendent batteries makes sense only for battery 1
     local eff = speed > 2 and (conf.battConf == 3 and battery[7+1] or battery[7])*1000/(speed*conf.horSpeedMultiplier) or 0
     eff = ( conf.battConf == 3 and battId == 2) and 0 or eff
-    lcd.drawNumber(x+-2,164,eff,(eff > 99999 and 0 or MIDSIZE)+RIGHT+CUSTOM_COLOR)
+    lcd.drawNumber(x+15,165,eff,(eff > 99999 and 0 or MIDSIZE)+RIGHT+CUSTOM_COLOR)
     -- power
     local power = battery[4+battId]*battery[7+battId]*0.01
-    lcd.drawNumber(x+95,164,power,MIDSIZE+RIGHT+CUSTOM_COLOR)
-    --lcd.drawText(x+95,164,string.format("%dW",power),MIDSIZE+CUSTOM_COLOR)
+    lcd.drawNumber(x+95,165,power,MIDSIZE+RIGHT+CUSTOM_COLOR)
+    --lcd.drawText(x+95,165,string.format("%dW",power),MIDSIZE+CUSTOM_COLOR)
   end
   if status.showMinMaxValues == true then
     drawLib.drawVArrow(x+75+11, 16 + 8,false,true,utils)

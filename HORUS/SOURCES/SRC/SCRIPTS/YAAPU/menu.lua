@@ -59,7 +59,6 @@
 --#define DEBUG_MESSAGES
 --#define DEBUG_FENCE
 --#define DEBUG_TERRAIN
---#define DEBUG_THROTTLE
 
 ---------------------
 -- DEBUG REFRESH RATES
@@ -294,33 +293,36 @@ local function updateMenuItems()
       -- large hud layout
       ---------------------
       
+      --{"center panel layout:", "CPANE", 1, { "def","small","russian","dev" }, { 1, 2, 3, 4 } },
       value, name, idx = getMenuItemByName(menuItems,"CPANE")
-      menuItems[idx][4] = { "default" };
+      menuItems[idx][4] = { "default"};
       menuItems[idx][5] = { 1 };
       
       if menuItems[idx][3] > #menuItems[idx][4] then
         menuItems[idx][3] = 1
       end
       
+      --{"right panel layout:", "RPANE", 1, { "def", "custom", "empty","dev"}, { 1, 2, 3, 4 } },
       value, name, idx = getMenuItemByName(menuItems,"RPANE")
-      menuItems[idx][4] = { "default", "batt% by voltage", "tether", "hybrid" };
-      menuItems[idx][5] = { 1, 2, 3, 4 };
+      menuItems[idx][4] = { "default", "batt% by voltage", "tether", "hybrid", "custom sensors"};
+      menuItems[idx][5] = { 1, 2, 3, 4, 5 };
       
       if menuItems[idx][3] > #menuItems[idx][4] then
         menuItems[idx][3] = 1
       end
       
+      --{"left panel layout:", "LPANE", 1, { "def","mav2frsky", "empty", "dev" }, { 1 , 2, 3, 4 } },
       value, name, idx = getMenuItemByName(menuItems,"LPANE")
-      menuItems[idx][4] = { "default", "mav2passthru" };
+      menuItems[idx][4] = { "default","mav2passthru"};
       menuItems[idx][5] = { 1, 2 };
       
       if menuItems[idx][3] > #menuItems[idx][4] then
         menuItems[idx][3] = 1
       end
       
-      centerPanelFiles = { "hud_1" }
-      rightPanelFiles = { "right_1", "right_battperc_1", "right_tether_1", "right_hybrid_1" }
-      leftPanelFiles = { "left_1", "left_m2f_1" }
+      centerPanelFiles = {"hud_1", "hud_nav_1", "hud_radar_1"}
+      rightPanelFiles = {"right_1", "right_battperc_1", "right_tether_1", "right_hybrid_1", "right_custom_1"}
+      leftPanelFiles = {"left_1", "left_m2f_1"}
     
     elseif value == 2 then
       ---------------------
@@ -329,7 +331,7 @@ local function updateMenuItems()
       
       --{"center panel layout:", "CPANE", 1, { "def","small","russian","dev" }, { 1, 2, 3, 4 } },
       value, name, idx = getMenuItemByName(menuItems,"CPANE")
-      menuItems[idx][4] = { "default", "russian hud", "compact hud" };
+      menuItems[idx][4] = { "default", "russian hud", "compact hud "};
       menuItems[idx][5] = { 1, 2, 3 };
       
       if menuItems[idx][3] > #menuItems[idx][4] then
@@ -338,7 +340,7 @@ local function updateMenuItems()
       
       --{"right panel layout:", "RPANE", 1, { "def", "custom", "empty","dev"}, { 1, 2, 3, 4 } },
       value, name, idx = getMenuItemByName(menuItems,"RPANE")
-      menuItems[idx][4] = { "default", "custom sensors" };
+      menuItems[idx][4] = { "default", "custom sensors"};
       menuItems[idx][5] = { 1, 2 };
       
       if menuItems[idx][3] > #menuItems[idx][4] then
@@ -347,7 +349,7 @@ local function updateMenuItems()
       
       --{"left panel layout:", "LPANE", 1, { "def","mav2frsky", "empty", "dev" }, { 1 , 2, 3, 4 } },
       value, name, idx = getMenuItemByName(menuItems,"LPANE")
-      menuItems[idx][4] = { "default","mav2passthru" };
+      menuItems[idx][4] = { "default","mav2passthru"};
       menuItems[idx][5] = { 1, 2 };
       
       if menuItems[idx][3] > #menuItems[idx][4] then
@@ -575,7 +577,7 @@ local function drawConfigMenuBars()
   lcd.drawFilledRectangle(0,LCD_H-20, LCD_W, 20, CUSTOM_COLOR)
   lcd.drawRectangle(0, LCD_H-20, LCD_W, 20, CUSTOM_COLOR)
   lcd.setColor(CUSTOM_COLOR,0xFFFF)  
-  lcd.drawText(2,0,"Yaapu Telemetry Widget 1.9.4 beta1".." ("..'8047fde'..")",CUSTOM_COLOR)
+  lcd.drawText(2,0,"Yaapu Telemetry Widget 1.9.5-dev".." ("..'12530a0'..")",CUSTOM_COLOR)
   lcd.drawText(2,LCD_H-20+1,getConfigFilename(),CUSTOM_COLOR)
   lcd.drawText(LCD_W,LCD_H-20+1,itemIdx,CUSTOM_COLOR+RIGHT)
 end

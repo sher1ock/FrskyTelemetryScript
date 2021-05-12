@@ -59,7 +59,6 @@
 --#define DEBUG_MESSAGES
 --#define DEBUG_FENCE
 --#define DEBUG_TERRAIN
---#define DEBUG_THROTTLE
 
 ---------------------
 -- DEBUG REFRESH RATES
@@ -272,7 +271,7 @@ local function background(myWidget,conf,telemetry,status,utils)
   -- VFR
   setTelemetryValue(0x0AF, 0, 0, telemetry.airspeed*0.1, 4 , 0 , "ASpd")
   setTelemetryValue(0x010F, 0, 1, telemetry.baroAlt*10, 9 , 1 , "BAlt")
-  setTelemetryValue(0x050F, 0, 0, telemetry.throttle, 13 , 0 , "Thr")
+  setTelemetryValue(0x050D, 0, 0, telemetry.throttle, 13 , 0 , "Thr")
   
   -- WP
   setTelemetryValue(0x050F, 0, 10, telemetry.wpNumber, 0 , 0 , "WPN")

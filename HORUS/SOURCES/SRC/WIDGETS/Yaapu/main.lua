@@ -59,7 +59,6 @@
 --#define DEBUG_MESSAGES
 --#define DEBUG_FENCE
 --#define DEBUG_TERRAIN
---#define DEBUG_THROTTLE
 
 ---------------------
 -- DEBUG REFRESH RATES
@@ -920,9 +919,11 @@ utils.drawBlinkBitmap = function(bitmap,x,y)
   end
 end
 
-local function getSensorsConfigFilename()
+local function getSensorsConfigFilename(panel)
   local info = model.getInfo()
-  local cfg = "/SCRIPTS/YAAPU/CFG/" .. string.lower(string.gsub(info.name, "[%c%p%s%z]", "").."_sensors.lua")
+  local strPanel = panel == nil and "" or "_"..panel
+  local cfg = "/SCRIPTS/YAAPU/CFG/" .. string.lower(string.gsub(info.name, "[%c%p%s%z]", "")..strPanel.."_sensors.lua")
+  print("luaDebug:",cfg)
   local file = io.open(cfg,"r")
   
   if file == nil then
@@ -943,29 +944,29 @@ end
 -- CUSTOM SENSORS SUPPORT
 --------------------------
 
-utils.loadCustomSensors = function()
-  local success, sensorScript = pcall(loadScript,getSensorsConfigFilename())
+utils.loadCustomSensors = function(panel)
+  local success, sensorScript = pcall(loadScript,getSensorsConfigFilename(panel))
   if success then
     if sensorScript == nil then
-      customSensors = nil
-      return
+      return nil
     end
-    customSensors = sensorScript()
+    local sensors = sensorScript()
     -- handle nil values for warning and critical levels
     for i=1,6
     do
-      if customSensors.sensors[i] ~= nil then 
-        local sign = customSensors.sensors[i][6] == "+" and 1 or -1
-        if customSensors.sensors[i][9] == nil then
-          customSensors.sensors[i][9] = math.huge*sign
+      if sensors.sensors[i] ~= nil then 
+        local sign = sensors.sensors[i][6] == "+" and 1 or -1
+        if sensors.sensors[i][9] == nil then
+          sensors.sensors[i][9] = math.huge*sign
         end
-        if customSensors.sensors[i][8] == nil then
-          customSensors.sensors[i][8] = math.huge*sign
+        if sensors.sensors[i][8] == nil then
+          sensors.sensors[i][8] = math.huge*sign
         end
       end
     end
+    return sensors
   else
-    customSensors = nil
+    return nil
   end
 end
 
@@ -1055,7 +1056,7 @@ local function processTelemetry(DATA_ID,VALUE,now)
     telemetry.failsafe = bit32.extract(VALUE,12,1)
     telemetry.fencePresent = bit32.extract(VALUE,13,1)
     telemetry.fenceBreached = telemetry.fencePresent == 1 and bit32.extract(VALUE,14,1) or 0 -- ignore if fence is disabled
-    telemetry.throttle = bit32.extract(VALUE,19,7)
+    telemetry.throttle = math.floor(0.5 + (bit32.extract(VALUE,19,6) * (bit32.extract(VALUE,25,1) == 1 and -1 or 1) * 1.58)) -- signed throttle [-63,63] -> [-100,100]
     -- IMU temperature: 0 means temp =< 19°, 63 means temp => 82°
     telemetry.imuTemp = bit32.extract(VALUE,26,6) + 19 -- C°
   elseif DATA_ID == 0x5002 then -- GPS STATUS
@@ -1153,7 +1154,7 @@ local function processTelemetry(DATA_ID,VALUE,now)
   --]]
   elseif DATA_ID == 0x50F2 then -- VFR
     telemetry.airspeed = bit32.extract(VALUE,1,7) * (10^bit32.extract(VALUE,0,1)) -- dm/s
-    telemetry.throttle = bit32.extract(VALUE,8,7)
+    telemetry.throttle = bit32.extract(VALUE,8,7) -- unsigned throttle
     telemetry.baroAlt = bit32.extract(VALUE,17,10) * (10^bit32.extract(VALUE,15,2)) * 0.1 * (bit32.extract(VALUE,27,1) == 1 and -1 or 1)
   end
 end
@@ -1655,12 +1656,11 @@ local function reset()
     elseif resetPhase == 6 then
       -- custom sensors
       utils.clearTable(customSensors)
-      customSensors = nil
-      utils.loadCustomSensors()
+      customSensors = utils.loadCustomSensors()
       -- done
       resetPhase = 7
     elseif resetPhase == 7 then
-      utils.pushMessage(7,"Yaapu Telemetry Widget 1.9.4 beta1")
+      utils.pushMessage(7,"Yaapu Telemetry Widget 1.9.5-dev")
       utils.playSound("yaapu")
       -- on model change reload config!
       if modelChangePending == true then
@@ -1717,12 +1717,13 @@ local function setSensorValues()
   setTelemetryValue(0x082F, 0, 0, math.floor(telemetry.gpsAlt*0.1), 9 , 0 , "GAlt")
   setTelemetryValue(0x041F, 0, 0, telemetry.imuTemp, 11 , 0 , "IMUt")
   setTelemetryValue(0x060F, 0, 1, telemetry.statusArmed*100, 0 , 0 , "ARM")
+  setTelemetryValue(0x050D, 0, 0, telemetry.throttle, 13 , 0 , "Thr")
   
   if conf.enableRPM == 2  or conf.enableRPM == 3 then
-    setTelemetryValue(0x050E, 0, 0, telemetry.rpm1, 18 , 0 , "RPM0")
+    setTelemetryValue(0x050E, 0, 0, telemetry.rpm1, 18 , 0 , "RPM1")
   end
   if conf.enableRPM == 3 then
-    setTelemetryValue(0x050F, 0, 0, telemetry.rpm2, 18 , 0 , "RPM1")
+    setTelemetryValue(0x050F, 0, 0, telemetry.rpm2, 18 , 0 , "RPM2")
   end
 end
 
@@ -2294,11 +2295,11 @@ local function init()
   drawLib = utils.doLibrary(drawLibFile)
   currentModel = model.getInfo().name
   -- load custom sensors
-  utils.loadCustomSensors()
+  customSensors = utils.loadCustomSensors()
   -- load battery config
   utils.loadBatteryConfigFile()
   -- ok done
-  utils.pushMessage(7,"Yaapu Telemetry Widget 1.9.4 beta1".." ("..'8047fde'..")")
+  utils.pushMessage(7,"Yaapu Telemetry Widget 1.9.5-dev".." ("..'12530a0'..")")
   utils.playSound("yaapu")
   -- fix for generalsettings lazy loading...
   unitScale = getGeneralSettings().imperial == 0 and 1 or 3.28084

@@ -59,7 +59,6 @@
 --#define DEBUG_MESSAGES
 --#define DEBUG_FENCE
 --#define DEBUG_TERRAIN
---#define DEBUG_THROTTLE
 
 ---------------------
 -- DEBUG REFRESH RATES
@@ -245,7 +244,7 @@ local function drawPane(x,drawLib,conf,telemetry,status,alarms,battery,battId,ut
   end
   if conf.enableRPM == 3 then
     lcd.drawText(190, 152, "RPM 2", SMLSIZE+RIGHT+CUSTOM_COLOR)
-    drawLib.drawBar("rpm2", 100, 168, 86, 22, 0xFE60, math.abs(telemetry.rpm2), MIDSIZE)
+    drawLib.drawBar("rpm2", 104, 168, 86, 22, 0xFE60, math.abs(telemetry.rpm2), MIDSIZE)
   end
   
   if status.showMinMaxValues == true then
