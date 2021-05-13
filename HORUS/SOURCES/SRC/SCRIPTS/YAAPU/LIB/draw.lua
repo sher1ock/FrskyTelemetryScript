@@ -343,11 +343,26 @@ local function initMap(map,name)
     map[name] = 0
   end
 end
+
+local function drawMinMaxBar(x, y, w, h, color, value, min, max, flags)
+  local perc = math.min(math.max(value,min),max)
+  lcd.setColor(CUSTOM_COLOR,lcd.RGB(255,255, 255))
+  lcd.drawFilledRectangle(x,y,w,h,CUSTOM_COLOR)
+  lcd.setColor(CUSTOM_COLOR,color)
+  lcd.drawGauge(x, y,w,h,perc-min,max-min,CUSTOM_COLOR)
+  lcd.setColor(CUSTOM_COLOR, 0x0000) -- black
+  local strperc = string.format("%02d%%",value)
+  local xOffset = flags==0 and 10 or 17
+  local yOffset = flags==0 and 1 or 4
+  lcd.drawText(x+w/2-xOffset, y-yOffset, strperc, flags+CUSTOM_COLOR)
+end
+
 -- initialize up to 5 bars
 local barMaxValues = {}
 local barAvgValues = {}
 local barSampleCounts = {}
 
+-- draw an horizontal dynamic bar with an average red pointer of the last 5 samples
 local function drawBar(name, x, y, w, h, color, value, flags)
   -- init
   initMap(barSampleCounts,name)
@@ -686,31 +701,34 @@ local function drawCustomSensors(x,customSensors,customSensorXY,utils,status,col
         local sensorValue = getValue(sensorName) 
         local value = (sensorValue+(mult == 100 and 0.005 or 0))*mult*sensorConfig[5]        
         
-        -- default font size
+        local sign = sensorConfig[6] == "+" and 1 or -1
         flags = sensorConfig[7] == 1 and 0 or MIDSIZE
         
-        --[[
-        -- for sensor 3,4,5,6 reduce font if necessary
-        if math.abs(value)*mult > 99999 then
-          flags = 0
-        end
-        --]]
-        
-        local color = 0xFFFF
-        local sign = sensorConfig[6] == "+" and 1 or -1
-        -- max tracking, high values are critical
-        if math.abs(value) ~= 0 and status.showMinMaxValues == false then
-          color = ( sensorValue*sign > sensorConfig[9]*sign and lcd.RGB(255,70,0) or (sensorValue*sign > sensorConfig[8]*sign and 0xFFE0 or 0xFFFF))
-        end
-        
-        lcd.setColor(CUSTOM_COLOR,color)
-        
-        local voffset = flags==0 and 6 or 0
-        -- if a lookup table exists use it!
-        if customSensors.lookups[i] ~= nil and customSensors.lookups[i][value] ~= nil then
-          lcd.drawText(x+customSensorXY[i][3], customSensorXY[i][4]+voffset, customSensors.lookups[i][value] or value, flags+RIGHT+CUSTOM_COLOR)
+        if sensorConfig[10] == true then
+        -- RED lcd.RGB(255,0, 0)
+        -- GREEN lcd.RGB(0, 255, 0)
+        -- YELLOW lcd.RGB(255, 204, 0)
+          local color = lcd.RGB(255,0, 0)
+          -- min/max tracking
+          if math.abs(value) ~= 0 then
+            color = ( sensorValue*sign > sensorConfig[9]*sign and lcd.RGB(255, 0, 0) or (sensorValue*sign > sensorConfig[8]*sign and lcd.RGB(255, 204, 0) or lcd.RGB(0, 255, 0)))
+          end
+          drawMinMaxBar(x+customSensorXY[i][3]-sensorConfig[11],customSensorXY[i][4]+5,sensorConfig[11],sensorConfig[12],color,value,sensorConfig[13],sensorConfig[14],flags)
         else
-          lcd.drawNumber(x+customSensorXY[i][3], customSensorXY[i][4]+voffset, value, flags+RIGHT+prec+CUSTOM_COLOR)
+          -- default font size
+          local color = 0xFFFF
+          -- min/max tracking
+          if math.abs(value) ~= 0 and status.showMinMaxValues == false then
+            color = ( sensorValue*sign > sensorConfig[9]*sign and lcd.RGB(255,70,0) or (sensorValue*sign > sensorConfig[8]*sign and 0xFFE0 or 0xFFFF))
+          end
+          lcd.setColor(CUSTOM_COLOR,color)
+          local voffset = flags==0 and 6 or 0
+          -- if a lookup table exists use it!
+          if customSensors.lookups[i] ~= nil and customSensors.lookups[i][value] ~= nil then
+            lcd.drawText(x+customSensorXY[i][3], customSensorXY[i][4]+voffset, customSensors.lookups[i][value] or value, flags+RIGHT+CUSTOM_COLOR)
+          else
+            lcd.drawNumber(x+customSensorXY[i][3], customSensorXY[i][4]+voffset, value, flags+RIGHT+prec+CUSTOM_COLOR)
+          end
         end
       end
     end
@@ -724,6 +742,7 @@ return {
   drawRArrow=drawRArrow,
   drawGauge=drawGauge,
   drawBar=drawBar,
+  drawMinMaxBar=drawMinMaxBar,
   drawGraph=drawGraph,
   computeOutCode=computeOutCode,
   drawLineWithClippingXY=drawLineWithClippingXY,

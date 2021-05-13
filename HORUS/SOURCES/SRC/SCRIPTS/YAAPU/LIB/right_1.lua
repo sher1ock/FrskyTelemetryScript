@@ -227,22 +227,13 @@ local function drawPane(x,drawLib,conf,telemetry,status,alarms,battery,battId,ut
   local lowAmp = battery[7+battId]*0.1 < 10
   drawLib.drawNumberWithDim(x+77,70,x+77,81,battery[7+battId]*(lowAmp and 1 or 0.1),"A",MIDSIZE+RIGHT+CUSTOM_COLOR+(lowAmp and PREC1 or 0),SMLSIZE+CUSTOM_COLOR)
   -- display capacity bar %
-  lcd.setColor(CUSTOM_COLOR,lcd.RGB(255,255, 255))
-  lcd.drawFilledRectangle(x+7, 99,86,21,CUSTOM_COLOR)
+  local color = lcd.RGB(255,0, 0)
   if perc > 50 then
-    lcd.setColor(CUSTOM_COLOR,lcd.RGB(0, 255, 0))
+    color = lcd.RGB(0, 255, 0) -- red
   elseif perc <= 50 and perc > 25 then
-      lcd.setColor(CUSTOM_COLOR,lcd.RGB(255, 204, 0)) -- yellow
-  else
-    lcd.setColor(CUSTOM_COLOR,lcd.RGB(255,0, 0))
+    color = lcd.RGB(255, 204, 0) -- yellow
   end
-  lcd.drawGauge(x+7, 99,86,21,perc,100,CUSTOM_COLOR)
-  -- battery percentage
-  lcd.setColor(CUSTOM_COLOR,0x0000) -- black
-  
-  local strperc = string.format("%02d%%",perc)
-  lcd.drawText(x+35, 95, strperc, MIDSIZE+CUSTOM_COLOR)
-  
+  drawLib.drawMinMaxBar(x+7, 99,86,21,color,perc,0,100,MIDSIZE)
   -- battery mah
   lcd.setColor(CUSTOM_COLOR,0xFFFF)
   local strmah = string.format("%.02f/%.01f",battery[10+battId]/1000,battery[13+battId]/1000)
